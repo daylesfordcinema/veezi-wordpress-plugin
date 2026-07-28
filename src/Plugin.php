@@ -68,6 +68,8 @@ final class Plugin {
 	}
 
 	private function register(): void {
+		add_action( 'init', array( ContentModel::class, 'register' ) );
+		add_action( 'init', array( ContentModel::class, 'flush_rewrites_when_stale' ), 20 );
 		add_action( 'admin_init', array( $this->settings, 'register' ) );
 
 		if ( is_admin() ) {
@@ -78,13 +80,26 @@ final class Plugin {
 	/**
 	 * Runs on activation.
 	 *
-	 * Deliberately does no work: there is nothing to install yet, and an
-	 * activation hook that writes options makes the plugin harder to reason
-	 * about than one that reads defaults. Scheduling arrives with the sync.
+	 * Only the rewrite rules need touching. Film pages live at addresses the
+	 * post type registration invents, and WordPress caches those rules, so
+	 * without a flush here the first film link a visitor follows is a 404. No
+	 * options are written: defaults belong in the code that reads them, where
+	 * they also apply to a site that was activated before they existed.
 	 */
 	public static function activate(): void {
+		ContentModel::register();
+		ContentModel::flush_rewrites();
 	}
 
+	/**
+	 * Leaves the programme in place — a deactivated plugin should be a
+	 * reversible mistake — and only withdraws the routes that would now 404.
+	 *
+	 * The stamp goes too, so that whatever happens next, the routes are
+	 * rebuilt rather than assumed.
+	 */
 	public static function deactivate(): void {
+		delete_option( ContentModel::REWRITES_VERSION );
+		flush_rewrite_rules( false );
 	}
 }

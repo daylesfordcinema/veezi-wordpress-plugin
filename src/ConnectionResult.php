@@ -24,16 +24,17 @@ final class ConnectionResult implements JsonSerializable {
 	private function __construct(
 		private readonly bool $success,
 		private readonly string $site_name,
+		private readonly string $timezone_identifier,
 		private readonly string $code,
 		private readonly string $message
 	) {}
 
-	public static function success( string $site_name, string $message ): self {
-		return new self( true, $site_name, '', $message );
+	public static function success( string $site_name, string $timezone_identifier, string $message ): self {
+		return new self( true, $site_name, $timezone_identifier, '', $message );
 	}
 
 	public static function failure( string $code, string $message ): self {
-		return new self( false, '', $code, $message );
+		return new self( false, '', '', $code, $message );
 	}
 
 	public function is_success(): bool {
@@ -47,6 +48,15 @@ final class ConnectionResult implements JsonSerializable {
 	 */
 	public function site_name(): string {
 		return $this->site_name;
+	}
+
+	/**
+	 * The cinema's timezone, in whatever naming Veezi chose to report it —
+	 * normally Microsoft's. Learned here because `/v1/site` is the only place
+	 * it appears, and every showtime in the programme depends on it.
+	 */
+	public function timezone_identifier(): string {
+		return $this->timezone_identifier;
 	}
 
 	public function code(): string {
@@ -64,6 +74,7 @@ final class ConnectionResult implements JsonSerializable {
 		return array(
 			'success'   => $this->success,
 			'site_name' => $this->site_name,
+			'timezone'  => $this->timezone_identifier,
 			'code'      => $this->code,
 			'message'   => $this->message,
 		);
@@ -77,6 +88,7 @@ final class ConnectionResult implements JsonSerializable {
 		return new self(
 			! empty( $data['success'] ),
 			isset( $data['site_name'] ) ? (string) $data['site_name'] : '',
+			isset( $data['timezone'] ) ? (string) $data['timezone'] : '',
 			isset( $data['code'] ) ? (string) $data['code'] : '',
 			isset( $data['message'] ) ? (string) $data['message'] : ''
 		);

@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Veezi\WordPress;
 
 use DateTimeImmutable;
+use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -17,16 +18,18 @@ defined( 'ABSPATH' ) || exit;
  * Reads the cinema's programme from Veezi and publishes it as WordPress
  * content.
  *
- * Only the first step of that — authenticate, and establish whose programme
- * this is — is implemented so far. What the rest will be built on is here: a
- * clock the caller supplies.
+ * The order of operations is the whole design. Authenticate first, which also
+ * settles whose programme this is and which timezone its showtimes are read in.
+ * Then fetch all three feeds, and only once every one of them has arrived
+ * intact, write anything. A cinema's website going blank because the ticketing
+ * provider had a bad minute is the failure this shape exists to prevent: if any
+ * part of the fetch fails the run stops, and whatever synced last is still on
+ * the site.
  *
- * Every date decision a sync makes is a decision about *now*: which sessions
- * have already started, how far ahead "coming soon" reaches, which past
- * records are old enough to remove. Taking the current time as an argument is
- * what makes those decidable in a test, and it is a plain optional parameter
- * rather than an injected clock interface because there is exactly one thing
- * to vary.
+ * Every date decision a sync makes is a decision about *now* — which sessions
+ * have already started, how far ahead to look, which past records to remove —
+ * so the current time is an argument. It is a plain optional parameter rather
+ * than an injected clock interface because there is exactly one thing to vary.
  */
 final class Sync {
 
@@ -41,7 +44,70 @@ final class Sync {
 			return SyncResult::failed( $now, $connection->message() );
 		}
 
-		return SyncResult::completed( $now, $connection->message() );
+		$feeds = $this->fetch();
+
+		if ( is_wp_error( $feeds ) ) {
+			return SyncResult::failed( $now, $feeds->get_error_message() );
+		}
+
+		$zone = CinemaTimezone::resolve( $connection->timezone_identifier() );
+
+		$programme = Programme::assemble( $feeds['sessions'], $feeds['web_sessions'], $feeds['films'], $zone );
+
+		( new Repository( $zone ) )->store( $programme, $now );
+
+		return SyncResult::completed(
+			$now,
+			self::summary( count( $programme->films() ), count( $programme->sessions() ), $connection->site_name() )
+		);
+	}
+
+	/**
+	 * All three feeds, or the first reason one of them could not be had.
+	 *
+	 * Fetched together and up front so that nothing is written on the strength
+	 * of a partial answer.
+	 *
+	 * @return array{sessions:array<mixed>,web_sessions:array<mixed>,films:array<mixed>}|WP_Error
+	 */
+	private function fetch() {
+		$endpoints = array(
+			'sessions'     => Client::SESSIONS,
+			'web_sessions' => Client::WEB_SESSIONS,
+			'films'        => Client::FILMS,
+		);
+
+		$feeds = array();
+
+		foreach ( $endpoints as $name => $path ) {
+			$feed = $this->client->get( $path );
+
+			if ( is_wp_error( $feed ) ) {
+				return $feed;
+			}
+
+			$feeds[ $name ] = $feed;
+		}
+
+		return $feeds;
+	}
+
+	private static function summary( int $films, int $sessions, string $cinema ): string {
+		return sprintf(
+			/* translators: 1: film count with its noun, e.g. "3 films". 2: session count with its noun, e.g. "12 sessions". 3: the cinema's name. */
+			__( 'Synced %1$s and %2$s from %3$s.', 'veezi-wordpress-plugin' ),
+			sprintf(
+				/* translators: %s: a number of films. */
+				_n( '%s film', '%s films', $films, 'veezi-wordpress-plugin' ),
+				number_format_i18n( $films )
+			),
+			sprintf(
+				/* translators: %s: a number of sessions. */
+				_n( '%s session', '%s sessions', $sessions, 'veezi-wordpress-plugin' ),
+				number_format_i18n( $sessions )
+			),
+			$cinema
+		);
 	}
 
 	/**

@@ -39,6 +39,28 @@ final class Client {
 	 */
 	public const DEFAULT_BASE_URL = 'https://api.oz.veezi.com';
 
+	/*
+	 * The four endpoints the plugin reads. Note the version mismatch: films are
+	 * v4 and everything else is v1. That is Veezi's, not a mistake here.
+	 */
+
+	public const SITE = '/v1/site';
+
+	/**
+	 * Every scheduled session, including those not yet on sale — and carrying
+	 * no booking link, for any of them.
+	 */
+	public const SESSIONS = '/v1/session';
+
+	/**
+	 * The sessions currently sellable online, each with the link to buy. A
+	 * strict subset of {@see self::SESSIONS}, and the only source of booking
+	 * links there is.
+	 */
+	public const WEB_SESSIONS = '/v1/websession';
+
+	public const FILMS = '/v4/film';
+
 	/** Case-sensitive, and the only accepted way to present the token. */
 	private const TOKEN_HEADER = 'VeeziAccessToken';
 
@@ -66,7 +88,7 @@ final class Client {
 	 * left over from another cinema.
 	 */
 	public function check_connection(): ConnectionResult {
-		$site = $this->get( '/v1/site' );
+		$site = $this->get( self::SITE );
 
 		if ( is_wp_error( $site ) ) {
 			return ConnectionResult::failure( $site->get_error_code(), $site->get_error_message() );
@@ -83,6 +105,7 @@ final class Client {
 
 		return ConnectionResult::success(
 			$name,
+			isset( $site['TimeZoneIdentifier'] ) ? trim( (string) $site['TimeZoneIdentifier'] ) : '',
 			sprintf(
 				/* translators: %s: the cinema's name as Veezi reports it. */
 				__( 'Connected to %s.', 'veezi-wordpress-plugin' ),

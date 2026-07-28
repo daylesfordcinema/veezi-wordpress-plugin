@@ -33,7 +33,7 @@ final class SyncTest extends TestCase {
 	}
 
 	public function test_a_sync_uses_the_time_it_is_given(): void {
-		$this->veezi->will_return( '/v1/site', $this->site_payload() );
+		$this->arrange_programme( array(), array() );
 
 		$moment = new DateTimeImmutable( '2001-02-03 04:05:06', new DateTimeZone( 'UTC' ) );
 
@@ -43,7 +43,7 @@ final class SyncTest extends TestCase {
 	}
 
 	public function test_a_sync_given_no_time_uses_the_real_clock(): void {
-		$this->veezi->will_return( '/v1/site', $this->site_payload() );
+		$this->arrange_programme( array(), array() );
 
 		$result = $this->sync()->run();
 
@@ -60,7 +60,7 @@ final class SyncTest extends TestCase {
 	 * server's would make the same code behave differently on two hosts.
 	 */
 	public function test_the_default_clock_is_unambiguous_about_its_timezone(): void {
-		$this->veezi->will_return( '/v1/site', $this->site_payload() );
+		$this->arrange_programme( array(), array() );
 
 		$result = $this->sync()->run();
 
@@ -68,12 +68,17 @@ final class SyncTest extends TestCase {
 	}
 
 	public function test_a_sync_reports_which_cinema_it_connected_to(): void {
-		$this->veezi->will_return( '/v1/site', $this->site_payload( array( 'Name' => 'Regal Picture Palace' ) ) );
+		$this->arrange_programme( array(), array() );
+		$this->veezi->will_return( '/v1/site', $this->site_payload( array( 'Name' => 'The Roxy, Marysville' ) ) );
 
 		$result = $this->sync()->run();
 
 		$this->assertTrue( $result->is_success() );
-		$this->assertStringContainsString( 'Regal Picture Palace', $result->message() );
+		$this->assertStringContainsString(
+			'The Roxy, Marysville',
+			$result->message(),
+			'The name has to come from the payload, or this proves nothing.'
+		);
 	}
 
 	public function test_a_sync_with_no_token_fails_without_reaching_the_network(): void {

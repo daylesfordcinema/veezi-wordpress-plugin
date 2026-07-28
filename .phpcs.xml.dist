@@ -68,6 +68,15 @@
 		<exclude-pattern>/tests/*</exclude-pattern>
 	</rule>
 	<!--
+		"Which record did the sync make for upstream id 42?" is a lookup by meta
+		value. On a page a visitor loads that is worth warning about, which is
+		why the plugin's own code indexes the records instead; against a handful
+		of fixtures it is simply the clearest way to ask.
+	-->
+	<rule ref="WordPress.DB.SlowDBQuery">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<!--
 		`define( Token::CONSTANT, ... )` in a test: the sniff reads the name as
 		the literal "Token::CONSTANT" and cannot see that it resolves to a
 		prefixed one.

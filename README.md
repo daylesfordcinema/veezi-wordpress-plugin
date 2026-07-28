@@ -7,8 +7,49 @@ the ticketing system instead of being retyped from it.
 The integration is **read-only**. Ticket sales stay in Veezi; the plugin renders
 links out to the cinema's own booking pages and never handles a transaction.
 
-> **Status: early.** This release connects to Veezi and confirms which cinema
-> the site is talking to. Syncing films and sessions is the next piece of work.
+> **Status: early.** This release connects to Veezi and syncs the programme into
+> WordPress. Posters, listing order and the Elementor bindings that display it
+> all are still to come, and there is no scheduled or on-demand trigger yet.
+
+## What it syncs
+
+A sync reads three Veezi endpoints and turns them into ordinary WordPress
+content:
+
+- **Films** (`veezi_film`) — one per film something is scheduled for, carrying
+  the synopsis, runtime, distributor, release date and trailer link, filed under
+  genre and classification taxonomies. Films are never deleted, so a link to one
+  keeps working after its season ends.
+- **Sessions** (`veezi_session`) — one per screening, with its start and end,
+  its booking link, and whether it is sold out or nearly so.
+
+The listing is built from what is scheduled, never from the film catalogue: every
+film in a Veezi account reports itself as active, including test records, so a
+listing derived from the catalogue would advertise films that will never screen.
+
+### Times
+
+Veezi reports showtimes with no timezone offset — `"2026-08-02T16:30:00"` is a
+reading of a clock, not a moment. The plugin interprets them in **the cinema's**
+timezone, which it learns from the Veezi account itself, and not in the site's or
+the server's. A WordPress install with its timezone unset or wrong still shows
+the right time on the page.
+
+Each session stores both the instant, for sorting and filtering, and the time
+written out, so nothing has to convert it again to print it.
+
+### Programming that has not been announced
+
+Veezi distinguishes sessions that are on sale from those merely planned. Both are
+synced, but **planned sessions and the films known only from them are stored as
+drafts**: visible to an administrator, invisible to a visitor. Nothing publishes
+next month's programme before the cinema chooses to.
+
+### Running it twice
+
+A sync is keyed on Veezi's own identifiers and compares before it writes, so
+running it against unchanged data creates nothing, updates nothing, and leaves
+every modification date alone.
 
 ## Installing
 
@@ -40,6 +81,16 @@ Australia/New Zealand one; point it elsewhere with a filter:
 add_filter( 'veezi_api_base_url', fn() => 'https://api.uk.veezi.com' );
 ```
 
+The cinema's timezone is read from the Veezi account and translated from
+Microsoft's naming, which is what Veezi reports, into the names PHP understands.
+That translation table covers the places Veezi sells tickets rather than every
+name Microsoft has ever issued, so a cinema it does not know falls back to the
+site's own timezone. Name the zone exactly with:
+
+```php
+add_filter( 'veezi_cinema_timezone', fn() => 'Australia/Melbourne' );
+```
+
 ## How the token is handled
 
 It is a live credential for a cinema's ticketing account, so:
@@ -54,9 +105,10 @@ It is a live credential for a cinema's ticketing account, so:
 
 Note that a Veezi token also reads seat counts, price card names and sales
 figures. That is why it must not reach client-side code: every API call this
-plugin makes is server-side. When session syncing lands, those commercial
-fields will be discarded rather than stored, so that keeping them off the site
-does not depend on remembering to filter them at render time.
+plugin makes is server-side. Those commercial fields are **discarded as the
+programme is read**, not filtered out at render time — only the sold-out and
+few-tickets-left flags are kept — so nothing can leak them through a REST route,
+an export or a careless template, because they were never written down.
 
 ## Development
 
