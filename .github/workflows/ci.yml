@@ -1,0 +1,94 @@
+## Lint and test every change.
+##
+## This workflow is deliberately unprivileged: it declares read-only
+## permissions, reads no secret, and runs on `pull_request` rather than
+## `pull_request_target`, so a pull request from a fork executes that fork's
+## code with nothing worth stealing in scope. Anything that needs write access
+## — publishing an archive, deploying — belongs in a workflow an outside
+## contributor cannot trigger. See release.yml.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  ## Called by release.yml so that a tag ships only what has passed here.
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  ## Named for this workflow rather than the event, so a release calling it
+  ## cannot collide with the release's own group.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ## Separate from the tests rather than a step inside them: they fail for
+  ## unrelated reasons and both answers are wanted from one push, not the first
+  ## one to go red.
+  lint:
+    name: Coding standards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - run: composer install --no-interaction --no-progress
+
+      - run: composer lint
+
+  test:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+
+    ## MariaDB 10.11 to match the host. The suite builds and wipes its own
+    ## database, so it wants a server of its own rather than a shared one.
+    services:
+      database:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      ## PHP 8.2 to match the host. GD is not optional: without an image
+      ## library WordPress accepts an upload and silently generates no sizes,
+      ## so the poster tests would pass while proving nothing about the
+      ## resizing they exist to check.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mysqli, gd
+          coverage: none
+
+      - run: composer install --no-interaction --no-progress
+
+      ## WordPress, the core test library and Elementor are all pinned inside
+      ## the script, which is the same one the development replica runs — so
+      ## the versions are stated once and CI cannot drift from a developer's
+      ## machine by restating them here.
+      - name: Prepare the WordPress test environment
+        run: bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306
+
+      ## The step above installed WordPress into that database. Without this
+      ## the test library would drop and rebuild every table first, which buys
+      ## nothing on a runner that was created seconds ago.
+      - name: Run the suite
+        run: vendor/bin/phpunit
+        env:
+          WP_TESTS_SKIP_INSTALL: '1'

@@ -1,0 +1,113 @@
+## Turn a tag into an installable plugin archive.
+##
+## This is the privileged half, kept in its own file for that reason: it can
+## write to the repository, and it runs only on a tag push, which nobody
+## without push access can produce. Nothing here is reachable from a pull
+## request. CI runs first — as a called workflow rather than a copied one, so a
+## release ships only what the ordinary checks passed.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  ## Not cancelled in progress: half a published release is worse than a slow
+  ## one.
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ## The plugin slug, which is also the repository name, the main file's name
+  ## and the text domain. The suite checks those three against each other; the
+  ## archive check below catches this one being wrong.
+  SLUG: veezi-wordpress-plugin
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    name: Archive
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      ## The suite ties the header, the VERSION constant and readme.txt to each
+      ## other. This ties all three to the tag, which is the one comparison a
+      ## test cannot make — there is no tag at test time.
+      - name: Check the tag against the version the plugin declares
+        run: |
+          declared="$(awk '/^ \* Version:/ { print $3; exit }' "$SLUG.php")"
+
+          if [ "v$declared" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the declared version $declared." >&2
+            echo "Bump the plugin header, the VERSION constant and readme.txt together," >&2
+            echo "then tag the commit that does it." >&2
+            exit 1
+          fi
+
+          echo "VERSION=$declared" >> "$GITHUB_ENV"
+
+      ## `git archive` rather than a copy-and-delete: what stays out is
+      ## declared in .gitattributes, next to the files it names, so the archive
+      ## cannot quietly start carrying something new. HEAD is the tagged commit
+      ## — this workflow runs on nothing else.
+      - name: Build the archive
+        run: |
+          git archive --format=zip --prefix="$SLUG/" \
+            -o "$SLUG-$VERSION.zip" HEAD
+
+      ## An archive is only installable if it has exactly one top-level
+      ## directory and that directory is the slug: WordPress names the
+      ## installed plugin after it. Checked both ways round — that what must be
+      ## there is, and that what must not be there is not — because an
+      ## export-ignore that stops matching fails silently and ships the
+      ## development tree to a live site.
+      - name: Check what is in it
+        run: |
+          contents="$(unzip -Z1 "$SLUG-$VERSION.zip")"
+          printf '%s\n' "$contents"
+
+          top="$(printf '%s\n' "$contents" | cut -d/ -f1 | sort -u)"
+          if [ "$top" != "$SLUG" ]; then
+            echo "Expected one top-level directory named $SLUG, found: $top" >&2
+            exit 1
+          fi
+
+          if ! printf '%s\n' "$contents" | grep -qx "$SLUG/$SLUG.php"; then
+            echo "The archive has no $SLUG/$SLUG.php for WordPress to read." >&2
+            exit 1
+          fi
+
+          for unwanted in \
+            .github .gitattributes .gitignore .phpcs.xml.dist \
+            bin composer.json composer.lock docs phpunit.xml.dist tests vendor
+          do
+            if printf '%s\n' "$contents" | grep -q "^$SLUG/$unwanted"; then
+              echo "$unwanted is in the archive; check .gitattributes." >&2
+              exit 1
+            fi
+          done
+
+      ## Create the release if the tag arrived on its own, or attach to one
+      ## already published from the web interface. Either route ends with the
+      ## same file on the same tag, which is what the deploy and the manual
+      ## uploader both take.
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="$SLUG-$VERSION.zip"
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$archive" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$archive" \
+              --title "$GITHUB_REF_NAME" --generate-notes
+          fi

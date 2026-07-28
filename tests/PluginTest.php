@@ -11,6 +11,8 @@ use Veezi\WordPress\Plugin;
 use Veezi\WordPress\Settings;
 use Veezi\WordPress\Tests\Support\TestCase;
 
+use const Veezi\WordPress\VERSION;
+
 /**
  * What WordPress needs to be true of the plugin before any of it runs: a
  * header it can read, a licence it can redistribute, and an install and
@@ -67,6 +69,25 @@ final class PluginTest extends TestCase {
 
 		$this->assertSame( $slug, basename( dirname( __DIR__ ) ) );
 		$this->assertSame( $slug, $this->plugin_header()['TextDomain'] );
+	}
+
+	/**
+	 * The version is written down in three files, and a release ties all three
+	 * to the tag it was cut from. Each is read by something different — the
+	 * header by WordPress's update check, the constant by every asset URL the
+	 * plugin enqueues, `Stable tag` by the plugin directory — so a drifted one
+	 * does not announce itself. It ships a plugin that misreports its own
+	 * version, and the release that would have caught it is the one already
+	 * published.
+	 */
+	public function test_the_header_the_constant_and_the_readme_agree_on_the_version(): void {
+		$readme = get_file_data(
+			dirname( __DIR__ ) . '/readme.txt',
+			array( 'stable_tag' => 'Stable tag' )
+		);
+
+		$this->assertSame( VERSION, $this->plugin_header()['Version'] );
+		$this->assertSame( VERSION, $readme['stable_tag'] );
 	}
 
 	public function test_the_declared_php_requirement_is_one_the_code_actually_needs(): void {
