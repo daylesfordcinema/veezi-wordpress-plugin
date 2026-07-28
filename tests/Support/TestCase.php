@@ -58,6 +58,14 @@ abstract class TestCase extends WP_UnitTestCase {
 		$this->veezi->unregister();
 		delete_option( Settings::OPTION );
 
+		// Anything that looped over a record left it set up as the current post.
+		wp_reset_postdata();
+
+		// Elementor caches the answer to "am I being edited?", so a test that
+		// said yes has to hand it back rather than leave it saying yes to
+		// everything that follows. Null is "work it out again".
+		\Elementor\Plugin::$instance->editor->set_edit_mode( null );
+
 		// Posters are real files on disk, and WordPress's own test case does not
 		// clear them. Left behind they accumulate across a run, and the next
 		// test to sideload the same film gets `the-cooks-tale-4.jpg` — so an
@@ -354,6 +362,85 @@ abstract class TestCase extends WP_UnitTestCase {
 
 	protected function film_record( string $upstream_id ): int {
 		return $this->record_for( ContentModel::FILM, ContentModel::FILM_ID, $upstream_id );
+	}
+
+	protected function session_record( int $upstream_id ): int {
+		return $this->record_for( ContentModel::SESSION, ContentModel::SESSION_ID, (string) $upstream_id );
+	}
+
+	/**
+	 * Put a record in the position a loop grid would put it.
+	 *
+	 * A loop item is rendered with its post set up as the current one, and that
+	 * is the whole of how the plugin's tags and its widget know which film they
+	 * are describing — there is no film to name and nothing to configure. So
+	 * that global is the seam a test drives them through.
+	 *
+	 * @param int $post_id The record being looped over.
+	 */
+	protected function looping_over( int $post_id ): void {
+		$GLOBALS['post'] = get_post( $post_id );
+
+		setup_postdata( $GLOBALS['post'] );
+	}
+
+	/**
+	 * What a widget bound to one of the plugin's dynamic tags would show.
+	 *
+	 * Goes through Elementor's own manager rather than the tag class, so this
+	 * asserts what the builder does with the tag and not merely what the class
+	 * would return if asked directly. An unregistered name comes back null.
+	 *
+	 * @param  string              $tag      The name a template stores, e.g. `veezi-runtime`.
+	 * @param  int                 $post_id  The record being looped over.
+	 * @param  array<string,mixed> $settings The tag's own controls, as the panel would set them.
+	 * @return mixed A string for most tags; an array for the poster.
+	 */
+	protected function bound( string $tag, int $post_id, array $settings = array() ) {
+		$this->looping_over( $post_id );
+
+		return \Elementor\Plugin::$instance->dynamic_tags->get_tag_data_content( 'a1b2c3d', $tag, $settings );
+	}
+
+	/**
+	 * What one of the plugin's widgets puts on the page.
+	 *
+	 * Built through Elementor's own element manager, which is the same call the
+	 * front end makes for every widget on a page — so this fails if the widget
+	 * was never registered, rather than quietly testing a class nobody can
+	 * reach from the builder.
+	 *
+	 * @param string              $widget   The name a template stores, e.g. `veezi-session-times`.
+	 * @param int                 $post_id  The record being looped over.
+	 * @param array<string,mixed> $settings The widget's controls, as the panel would set them.
+	 */
+	protected function rendered_widget( string $widget, int $post_id, array $settings = array() ): string {
+		$this->looping_over( $post_id );
+
+		$element = \Elementor\Plugin::$instance->elements_manager->create_element_instance(
+			array(
+				'id'         => 'a1b2c3d',
+				'elType'     => 'widget',
+				'widgetType' => $widget,
+				'settings'   => $settings,
+			)
+		);
+
+		$this->assertNotNull( $element, "Elementor has no {$widget} widget registered." );
+
+		ob_start();
+		$element->render_content();
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Stand where a designer stands: inside the builder rather than on the site.
+	 *
+	 * @param bool $editing Whether Elementor should believe it is being edited.
+	 */
+	protected function in_the_editor( bool $editing = true ): void {
+		\Elementor\Plugin::$instance->editor->set_edit_mode( $editing );
 	}
 
 	/**

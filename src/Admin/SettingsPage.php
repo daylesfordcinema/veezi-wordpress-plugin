@@ -32,6 +32,9 @@ final class SettingsPage {
 	public const CAPABILITY   = 'manage_options';
 	public const CHECK_ACTION = 'veezi_check_connection';
 
+	/** The starter card, relative to the plugin's main file. */
+	public const FILM_CARD = 'templates/film-card.json';
+
 	/**
 	 * The answer to a connection check waits here for the redirect that
 	 * follows it. Keyed by user, so two administrators working at once each
@@ -214,7 +217,35 @@ final class SettingsPage {
 		submit_button( __( 'Test connection', 'veezi-wordpress-plugin' ), 'secondary', 'veezi-check-connection', false );
 		echo '</form>';
 
+		$this->render_starter_templates();
+
 		echo '</div>';
+	}
+
+	/**
+	 * Where to find the starter card.
+	 *
+	 * The template ships as a file, so without this it is discoverable only by
+	 * somebody who thinks to look inside a plugin directory — which is nobody.
+	 * An Elementor developer returning to this site a year from now should be
+	 * able to find the way in from the screen the plugin already has.
+	 */
+	private function render_starter_templates(): void {
+		echo '<hr />';
+		echo '<h2>' . esc_html__( 'Starter templates', 'veezi-wordpress-plugin' ) . '</h2>';
+
+		echo '<p class="description">';
+		esc_html_e(
+			'A film card, ready to import and restyle: poster, title, details, session times and a booking button, with every field already bound. Download it, then go to Templates → Saved Templates → Import Templates.',
+			'veezi-wordpress-plugin'
+		);
+		echo '</p>';
+
+		printf(
+			'<p><a class="button button-secondary" href="%1$s" download>%2$s</a></p>',
+			esc_url( plugins_url( self::FILM_CARD, \Veezi\WordPress\PLUGIN_FILE ) ),
+			esc_html__( 'Download the film card', 'veezi-wordpress-plugin' )
+		);
 	}
 
 	public function render_connection_notice(): void {

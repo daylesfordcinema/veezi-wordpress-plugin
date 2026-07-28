@@ -72,6 +72,11 @@ final class Plugin {
 		add_action( 'init', array( ContentModel::class, 'flush_rewrites_when_stale' ), 20 );
 		add_action( 'admin_init', array( $this->settings, 'register' ) );
 
+		// Unconditional, and safe on a site with no page builder: these are two
+		// hooks Elementor fires, so without it they never fire and nothing under
+		// the Elementor directory is ever loaded.
+		( new Elementor\Integration() )->register();
+
 		if ( is_admin() ) {
 			( new Admin\SettingsPage( $this ) )->register();
 		}

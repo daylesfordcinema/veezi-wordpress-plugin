@@ -54,6 +54,12 @@ final class Repository {
 	 * @param Programme $programme What Veezi says is still to come.
 	 */
 	public function store( Programme $programme ): void {
+		// Kept where a page can read it, because the times a widget prints are
+		// worked out again at render time rather than reprinted from what is
+		// stored — which is the only way the format can be a control a designer
+		// changes. Writing the same name twice is not a write.
+		CinemaTimezone::remember( $this->zone );
+
 		$this->store_sessions( $programme, $this->store_films( $programme ) );
 		$this->forget_what_veezi_no_longer_lists( $programme );
 	}

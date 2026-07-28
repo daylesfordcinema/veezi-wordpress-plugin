@@ -32,6 +32,17 @@ defined( 'ABSPATH' ) || exit;
 final class CinemaTimezone {
 
 	/**
+	 * Where the answer is kept between syncs.
+	 *
+	 * The sync learns the cinema's timezone from Veezi, and every page that
+	 * prints a showtime needs it again — a widget offering a format control has
+	 * to work the time out afresh rather than reprint what the sync stored.
+	 * Asking Veezi at render time is out of the question, so the answer is
+	 * written down once and read from here.
+	 */
+	public const OPTION = 'veezi_timezone';
+
+	/**
 	 * Windows timezone identifiers to their IANA equivalents.
 	 *
 	 * @var array<string,string>
@@ -111,6 +122,26 @@ final class CinemaTimezone {
 		$name = (string) apply_filters( 'veezi_cinema_timezone', $name, $identifier );
 
 		return self::zone( $name ) ?? wp_timezone();
+	}
+
+	/**
+	 * Write down what the last sync worked out.
+	 *
+	 * @param DateTimeZone $zone The cinema's timezone.
+	 */
+	public static function remember( DateTimeZone $zone ): void {
+		update_option( self::OPTION, $zone->getName() );
+	}
+
+	/**
+	 * The cinema's timezone as of the last sync.
+	 *
+	 * Falls back to the site's, which is the same fallback {@see self::resolve()}
+	 * makes and wrong in the same way — but a page has to print something, and a
+	 * time in the wrong zone is at least a time.
+	 */
+	public static function stored(): DateTimeZone {
+		return self::zone( (string) get_option( self::OPTION, '' ) ) ?? wp_timezone();
 	}
 
 	/**

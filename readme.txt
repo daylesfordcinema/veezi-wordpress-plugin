@@ -30,9 +30,29 @@ links out to the cinema's own booking pages and never handles a transaction.
 This is an early release. It connects to Veezi, confirms which cinema the site
 is talking to, and syncs the programme: one record per film and one per
 screening, with showtimes read in the cinema's own timezone, booking links, and
-posters copied into the media library. The page-builder bindings that display it
-all are the next piece of work, and there is no scheduled or on-demand trigger
-yet.
+posters copied into the media library. It also gives Elementor the fields and
+the one widget a film listing needs. The single film page and the chronological
+calendar are the next piece of work, and there is no scheduled or on-demand
+trigger yet.
+
+= Building a film card =
+
+Seven fields appear in Elementor's dynamic-data picker under "Veezi Programme":
+poster, runtime, classification, genre, trailer link, session time and booking
+link. Bind them to ordinary widgets the way you would bind any custom field —
+they read whichever record is being rendered, so the same card works inside a
+loop and on a film's own page with nothing to configure.
+
+A card also needs every time that film screens, which is a list inside a list:
+loop widgets cannot nest and a dynamic tag can offer only one value. So the
+plugin ships one widget of its own, "Session Times", which lists a film's
+remaining screenings with a booking link for each, and carries controls for what
+a row shows and how the times read. A sold-out screening stays on the card,
+marked, with no link.
+
+An importable starter card ships with the plugin — poster, title, details,
+session times and a booking button, already bound. There is a link to it on
+Settings → Veezi.
 
 = Ordering a listing =
 

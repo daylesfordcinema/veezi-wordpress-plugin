@@ -7,10 +7,11 @@ the ticketing system instead of being retyped from it.
 The integration is **read-only**. Ticket sales stay in Veezi; the plugin renders
 links out to the cinema's own booking pages and never handles a transaction.
 
-> **Status: early.** This release connects to Veezi and syncs the programme —
-> posters included, correctly ordered — into WordPress. The Elementor bindings
-> that display it are still to come, and there is no scheduled or on-demand
-> trigger yet.
+> **Status: early.** This release connects to Veezi, syncs the programme —
+> posters included, correctly ordered — into WordPress, and gives Elementor the
+> fields and the one widget a film listing needs. The single film page and the
+> chronological calendar are still to come, and there is no scheduled or
+> on-demand trigger yet.
 
 ## What it syncs
 
@@ -110,6 +111,86 @@ A sync is keyed on Veezi's own identifiers and compares before it writes, so
 running it against unchanged data creates nothing, updates nothing, and leaves
 every modification date alone.
 
+## Building the listing
+
+All of the above is ordinary WordPress content, so a film card is built the way
+any other card is: drag out the widgets you want and bind their fields. What the
+plugin adds is the fields to bind, and the one thing a card needs that a page
+builder cannot express.
+
+### Fields to bind
+
+Seven entries appear in Elementor's dynamic-data picker under **Veezi
+Programme**:
+
+| Tag | On a film | On a screening |
+|---|---|---|
+| **Poster** | the artwork, from the media library | — |
+| **Runtime (minutes)** | a bare number — add "min" with the tag's own After control | — |
+| **Classification** | the rating | — |
+| **Genre** | every genre it is filed under | — |
+| **Trailer Link** | the trailer, as a link a video widget understands | — |
+| **Session Time** | when it next screens | that screening's time |
+| **Booking Link** | the soonest screening still on sale | that screening, unless it is sold out |
+
+They read whichever record is being rendered, so the same card works inside a
+loop and on a film's own page, with nothing to name and nothing to configure —
+and a duplicated template behaves exactly like the one it was copied from.
+
+Two of them answer differently on a film and on a screening, and **Booking Link**
+deliberately skips past a sold-out screening to the next one that can still be
+bought. A button pointing at the soonest screening whatever its state goes dead
+the moment that screening sells out, and stays dead for the rest of the week
+while five others are on sale.
+
+Anything absent resolves to nothing rather than to an error, so a card built for
+a film with a trailer keeps working for the one without.
+
+### The session times widget
+
+A card showing every time a film screens this week is a list inside a list. A
+loop widget cannot nest and a dynamic tag can offer only one value, so no
+arrangement of the two produces it — which is why the plugin ships **one** widget
+of its own, and only one.
+
+Drop **Session Times** into the card and it lists that film's remaining
+screenings, each linking to the seats for that particular screening. Controls
+cover what a row shows and how the times read: the time format, whether to name
+the day and in what form, how many to show, and the wording of the sold-out and
+nearly-sold-out badges. Times are worked out in the cinema's timezone, not the
+site's.
+
+A sold-out screening stays on the card, marked, with no link — somebody scanning
+the week needs to see that Saturday is gone, and a button landing on "no seats
+available" is a wasted trip.
+
+### A card to start from
+
+`templates/film-card.json` is an importable Elementor template: poster, title,
+details, session times and a booking button, with every field already bound.
+There is a link to it on **Settings → Veezi**; import it under **Templates →
+Saved Templates**, then restyle it. It doubles as a worked example of how the
+tags and the widget fit together.
+
+One thing to know about its **Book now** button. When a film has nothing left on
+sale the Booking Link resolves to nothing, and Elementor's button widget renders
+in that case as a button with no destination rather than not at all — so it
+looks clickable and is not. Give it a display condition, or delete it and let the
+session times do the booking, which they already do: every time in the list is a
+link to the seats for that screening.
+
+### Ordering
+
+Choose **Menu Order** in the loop widget's query — see above for why that field
+and no other.
+
+### When nothing appears
+
+Plugin-rendered output explains itself in the builder rather than collapsing to
+nothing: a widget with nothing to show says whether the programme has not synced
+yet — naming the settings screen — or whether this particular film has simply
+finished. A visitor sees nothing at all, which is correct.
+
 ## Installing
 
 Drop the plugin into `wp-content/plugins/` and activate it, then go to
@@ -172,9 +253,9 @@ an export or a careless template, because they were never written down.
 ## Development
 
 Tests run against real WordPress — real post types, real options, real HTTP
-layer — with one seam: `pre_http_request`. Everything above it is the code that
-ships. A request no test arranged an answer for fails the run rather than
-reaching the network.
+layer — and against real Elementor, with one seam: `pre_http_request`. Everything
+above it is the code that ships. A request no test arranged an answer for fails
+the run rather than reaching the network.
 
 ```sh
 composer install
@@ -183,9 +264,23 @@ vendor/bin/phpunit
 composer lint
 ```
 
-The install script downloads WordPress and the core test library over HTTPS and
-creates the test database. It leaves both alone on subsequent runs; pass
-`--force` to reinstall.
+The install script downloads WordPress, the core test library and Elementor over
+HTTPS and creates the test database. It leaves them alone on subsequent runs;
+pass `--force` to reinstall.
+
+Elementor is a prerequisite rather than an optional extra tests skip around: the
+dynamic tags and the session-times widget extend its own base classes, so a run
+without it would report success while proving nothing about the half of the
+plugin a visitor sees. Standing in a fake for it would prove only that the fake
+matches what we believed the API to be, which is the one thing already known.
+
+What that does **not** cover is Elementor Pro, which is commercial and cannot be
+installed in a public pipeline. Loop grid, template import and the theme builder
+are all Pro, so anything that only happens inside them — a card rendering for
+each film of a loop, ordering actually honouring menu order — is checked by hand
+in a development replica before release. This is the argument for keeping the
+presentation layer thin: `src/Presentation` holds the answers and is fully
+tested, and `src/Elementor` is the adapter that hands them over.
 
 Fixtures are synthesised rather than captured. A real capture from a cinema's
 account would carry its trading details, sales figures and unannounced

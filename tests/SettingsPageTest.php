@@ -157,6 +157,21 @@ final class SettingsPageTest extends TestCase {
 		);
 	}
 
+	/**
+	 * The starter card ships as a file inside the plugin, which makes it
+	 * discoverable only by somebody who thinks to look in a plugin directory —
+	 * which is nobody. This screen is the one place an administrator already
+	 * knows about, so the way in starts here.
+	 */
+	public function test_the_screen_offers_the_starter_card(): void {
+		$this->become_administrator();
+
+		$html = $this->render( array( $this->page, 'render' ) );
+
+		$this->assertStringContainsString( SettingsPage::FILM_CARD, $html );
+		$this->assertStringContainsString( 'Saved Templates', $html );
+	}
+
 	public function test_the_screen_itself_is_closed_to_anyone_without_permission(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
 

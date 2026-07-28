@@ -1,0 +1,45 @@
+/*
+ * Baseline layout for the session-times widget.
+ *
+ * Deliberately almost nothing: everything a designer is likely to want
+ * different — spacing, type, colour, padding, corners — is a control on the
+ * widget, and a stylesheet that set those would fight the panel. What is here
+ * is only what stops a row of showtimes rendering as a bulleted list running
+ * down the page, which is not a starting point anybody would accept.
+ *
+ * `currentColor` throughout, so the untouched widget inherits the card it was
+ * dropped into rather than introducing a colour of its own.
+ */
+
+.veezi-session-times {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.veezi-session-times__item {
+	margin: 0;
+}
+
+.veezi-session-times__session {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 6px;
+	padding: 6px 12px;
+	border: 1px solid currentColor;
+	text-decoration: none;
+}
+
+/* A screening that can be seen but not booked. */
+.veezi-session-times__session--closed {
+	opacity: 0.6;
+}
+
+.veezi-session-times__badge {
+	font-size: 0.8em;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}

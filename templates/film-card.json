@@ -1,0 +1,141 @@
+{
+	"version": "0.4",
+	"title": "Veezi film card",
+	"type": "container",
+	"page_settings": [],
+	"content": [
+		{
+			"id": "vzcard10",
+			"elType": "container",
+			"isInner": false,
+			"settings": {
+				"content_width": "full",
+				"flex_direction": "column",
+				"flex_gap": {
+					"unit": "px",
+					"size": 16,
+					"column": "16",
+					"row": "16",
+					"isLinked": true
+				}
+			},
+			"elements": [
+				{
+					"id": "vzcard20",
+					"elType": "widget",
+					"widgetType": "image",
+					"settings": {
+						"image": {
+							"url": "",
+							"id": ""
+						},
+						"image_size": "veezi-poster",
+						"__dynamic__": {
+							"image": "[elementor-tag id=\"vzcard20\" name=\"veezi-poster\" settings=\"%7B%7D\"]"
+						}
+					},
+					"elements": []
+				},
+				{
+					"id": "vzcard30",
+					"elType": "widget",
+					"widgetType": "heading",
+					"settings": {
+						"title": "Film title",
+						"header_size": "h3",
+						"__dynamic__": {
+							"title": "[elementor-tag id=\"vzcard30\" name=\"post-title\" settings=\"%7B%7D\"]"
+						}
+					},
+					"elements": []
+				},
+				{
+					"id": "vzcard40",
+					"elType": "container",
+					"isInner": true,
+					"settings": {
+						"content_width": "full",
+						"flex_direction": "row",
+						"flex_gap": {
+							"unit": "px",
+							"size": 12,
+							"column": "12",
+							"row": "12",
+							"isLinked": true
+						}
+					},
+					"elements": [
+						{
+							"id": "vzcard41",
+							"elType": "widget",
+							"widgetType": "heading",
+							"settings": {
+								"title": "PG",
+								"header_size": "p",
+								"__dynamic__": {
+									"title": "[elementor-tag id=\"vzcard41\" name=\"veezi-classification\" settings=\"%7B%7D\"]"
+								}
+							},
+							"elements": []
+						},
+						{
+							"id": "vzcard42",
+							"elType": "widget",
+							"widgetType": "heading",
+							"settings": {
+								"title": "100 min",
+								"header_size": "p",
+								"__dynamic__": {
+									"title": "[elementor-tag id=\"vzcard42\" name=\"veezi-runtime\" settings=\"%7B%22after%22%3A%22+min%22%7D\"]"
+								}
+							},
+							"elements": []
+						},
+						{
+							"id": "vzcard43",
+							"elType": "widget",
+							"widgetType": "heading",
+							"settings": {
+								"title": "Drama",
+								"header_size": "p",
+								"__dynamic__": {
+									"title": "[elementor-tag id=\"vzcard43\" name=\"veezi-genre\" settings=\"%7B%7D\"]"
+								}
+							},
+							"elements": []
+						}
+					]
+				},
+				{
+					"id": "vzcard50",
+					"elType": "widget",
+					"widgetType": "veezi-session-times",
+					"settings": {
+						"show_date": "yes",
+						"date_format": "D j M",
+						"time_format": "g:i a"
+					},
+					"elements": []
+				},
+				{
+					"id": "vzcard60",
+					"elType": "widget",
+					"widgetType": "button",
+					"settings": {
+						"text": "Book now",
+						"link": {
+							"url": "",
+							"is_external": "",
+							"nofollow": "",
+							"custom_attributes": ""
+						},
+						"__dynamic__": {
+							"link": "[elementor-tag id=\"vzcard60\" name=\"veezi-booking-url\" settings=\"%7B%7D\"]"
+						}
+					},
+					"elements": []
+				}
+			]
+		}
+	]
+}

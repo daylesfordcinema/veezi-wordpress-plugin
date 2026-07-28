@@ -22,10 +22,6 @@ use Veezi\WordPress\Tests\Support\TestCase;
  */
 final class ProgrammeSyncTest extends TestCase {
 
-	private function session_record( int $upstream_id ): int {
-		return $this->record_for( ContentModel::SESSION, ContentModel::SESSION_ID, (string) $upstream_id );
-	}
-
 	public function test_a_sync_creates_one_record_per_film_and_one_per_session(): void {
 		$this->arrange_programme(
 			array(

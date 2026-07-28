@@ -33,7 +33,22 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Sync {
 
+	/**
+	 * When a run last got all the way through, as an epoch second.
+	 *
+	 * Written only after every feed has arrived and been stored, so its absence
+	 * means precisely one thing: this site has never had a programme. That is
+	 * not the same question as "are there any screenings" — a cinema between
+	 * seasons has none and is working perfectly — and telling the two apart is
+	 * what stops a widget accusing a correctly configured site of being broken.
+	 */
+	public const COMPLETED_AT = 'veezi_last_sync';
+
 	public function __construct( private readonly Client $client ) {}
+
+	public static function has_ever_completed(): bool {
+		return '' !== (string) get_option( self::COMPLETED_AT, '' );
+	}
 
 	public function run( ?DateTimeImmutable $now = null ): SyncResult {
 		$now ??= self::now();
@@ -55,6 +70,8 @@ final class Sync {
 		$programme = Programme::assemble( $feeds['sessions'], $feeds['web_sessions'], $feeds['films'], $zone, $now );
 
 		( new Repository( $zone ) )->store( $programme );
+
+		update_option( self::COMPLETED_AT, (string) $now->getTimestamp() );
 
 		return SyncResult::completed(
 			$now,

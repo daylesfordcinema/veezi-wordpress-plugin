@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 #
 # Install the WordPress core test suite so PHPUnit can run against real
-# WordPress rather than a mock of it.
+# WordPress rather than a mock of it — plus Elementor, which the presentation
+# layer is written against and is equally not a thing worth mocking.
 #
 #   bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]
 #
 # Everything is also readable from the environment, which is how the Docker
 # runner and CI both drive it:
 #
-#   WP_VERSION       WordPress version to install          (default 7.0.2)
-#   WP_CORE_DIR      where WordPress itself is unpacked    (default /tmp/wordpress)
-#   WP_TESTS_DIR     where the test library is unpacked    (default /tmp/wordpress-tests-lib)
-#   WP_TESTS_DB_*    NAME / USER / PASS / HOST
+#   WP_VERSION         WordPress version to install        (default 7.0.2)
+#   ELEMENTOR_VERSION  Elementor version to install        (default 4.2.0)
+#   WP_CORE_DIR        where WordPress itself is unpacked  (default /tmp/wordpress)
+#   WP_TESTS_DIR       where the test library is unpacked  (default /tmp/wordpress-tests-lib)
+#   WP_TESTS_DB_*      NAME / USER / PASS / HOST
 #
 # Both directories are left alone if they already look populated, so repeated
 # runs are cheap. Pass --force to reinstall from scratch.
@@ -34,15 +36,21 @@ DB_USER=${2-${WP_TESTS_DB_USER-root}}
 DB_PASS=${3-${WP_TESTS_DB_PASS-root}}
 DB_HOST=${4-${WP_TESTS_DB_HOST-localhost}}
 WP_VERSION=${5-${WP_VERSION-7.0.2}}
+ELEMENTOR_VERSION=${ELEMENTOR_VERSION-4.2.0}
 
 WP_CORE_DIR=${WP_CORE_DIR-/tmp/wordpress}
 WP_TESTS_DIR=${WP_TESTS_DIR-/tmp/wordpress-tests-lib}
 WP_CORE_DIR=${WP_CORE_DIR%/}
 WP_TESTS_DIR=${WP_TESTS_DIR%/}
+ELEMENTOR_DIR="$WP_CORE_DIR/wp-content/plugins/elementor"
 
 STAGING=""
 cleanup() { [ -n "$STAGING" ] && rm -rf "$STAGING"; }
 trap cleanup EXIT
+
+# Unpacked archives are thrown away as soon as they are unpacked rather than
+# left to the trap, which only ever knows about the most recent one.
+discard_staging() { rm -rf "$STAGING"; STAGING=""; }
 
 say() { printf '==> %s\n' "$1"; }
 download() { curl -fsSL --retry 3 --retry-delay 2 "$1"; }
@@ -61,6 +69,42 @@ install_core() {
 
 	# The suite exercises media handling, which needs a real uploads directory.
 	mkdir -p "$WP_CORE_DIR/wp-content/uploads"
+}
+
+# Elementor, from the plugin directory, at a pinned version.
+#
+# The plugin's dynamic tags and its session-times widget extend Elementor's own
+# base classes, so there is nothing here to test them against except Elementor.
+# Standing in a fake for it would prove only that the fake matches what we
+# believed the API to be, which is the one thing already known.
+#
+# The free plugin is all that is needed: tag registration and widget
+# registration both live in it. Loop grid is Elementor Pro, commercial, and
+# cannot be installed here — so ordering inside a loop and template import stay
+# a manual check in the development replica.
+install_elementor() {
+	if [ "$FORCE" -eq 0 ] && [ -f "$ELEMENTOR_DIR/elementor.php" ]; then
+		say "Elementor already at $ELEMENTOR_DIR"
+		return
+	fi
+
+	say "Downloading Elementor $ELEMENTOR_VERSION"
+	rm -rf "$ELEMENTOR_DIR"
+	mkdir -p "$(dirname "$ELEMENTOR_DIR")"
+
+	# A zip rather than a tarball, because that is the only form the plugin
+	# directory serves — hence unzip, and hence the temporary file, since unzip
+	# cannot read a stream.
+	STAGING=$(mktemp -d)
+	download "https://downloads.wordpress.org/plugin/elementor.${ELEMENTOR_VERSION}.zip" > "$STAGING/elementor.zip"
+	unzip -q "$STAGING/elementor.zip" -d "$(dirname "$ELEMENTOR_DIR")"
+
+	discard_staging
+
+	if [ ! -f "$ELEMENTOR_DIR/elementor.php" ]; then
+		say "Elementor $ELEMENTOR_VERSION did not unpack to $ELEMENTOR_DIR"
+		exit 1
+	fi
 }
 
 install_test_suite() {
@@ -86,6 +130,8 @@ install_test_suite() {
 	mv "$STAGING/tests/phpunit/includes" "$WP_TESTS_DIR/includes"
 	mv "$STAGING/tests/phpunit/data" "$WP_TESTS_DIR/data"
 	mv "$STAGING/wp-tests-config-sample.php" "$WP_TESTS_DIR/wp-tests-config-sample.php"
+
+	discard_staging
 }
 
 # Generated on every run from the pristine sample, even when the library was
@@ -180,6 +226,7 @@ create_db() {
 }
 
 install_core
+install_elementor
 install_test_suite
 write_config
 create_db
