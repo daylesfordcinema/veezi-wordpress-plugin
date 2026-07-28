@@ -33,7 +33,7 @@ jobs:
     name: Coding standards
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -64,7 +64,7 @@ jobs:
           --health-retries=20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       ## PHP 8.2 to match the host. GD is not optional: without an image
       ## library WordPress accepts an upload and silently generates no sizes,
