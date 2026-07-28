@@ -36,7 +36,7 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       ## The suite ties the header, the VERSION constant and readme.txt to each
       ## other. This ties all three to the tag, which is the one comparison a
