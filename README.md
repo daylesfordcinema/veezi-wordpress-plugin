@@ -428,13 +428,21 @@ the run rather than reaching the network.
 ```sh
 composer install
 bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]
-vendor/bin/phpunit
+WP_TESTS_SKIP_INSTALL=1 vendor/bin/phpunit
 composer lint
 ```
 
 The install script downloads WordPress, the core test library and Elementor over
-HTTPS and creates the test database. It leaves them alone on subsequent runs;
-pass `--force` to reinstall.
+HTTPS, creates the test database and installs WordPress into it. It leaves the
+downloads alone on subsequent runs; pass `--force` to reinstall.
+
+Installing the database there rather than leaving it to the test library is what
+`WP_TESTS_SKIP_INSTALL` above is for. Unset, the library drops and rebuilds every
+table before each run — around 450ms, which on a single test file costs about as
+much as the tests do. Set, a run goes straight to the tests, at the price of the
+database outliving them: everything inside a test is in a transaction that gets
+rolled back, but a write made outside one is no longer wiped between runs. Leave
+it unset if that ever matters more than the time.
 
 Elementor is a prerequisite rather than an optional extra tests skip around: the
 dynamic tags and the session-times widget extend its own base classes, so a run

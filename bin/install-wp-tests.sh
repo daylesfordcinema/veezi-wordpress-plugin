@@ -16,7 +16,13 @@
 #   WP_TESTS_DB_*      NAME / USER / PASS / HOST
 #
 # Both directories are left alone if they already look populated, so repeated
-# runs are cheap. Pass --force to reinstall from scratch.
+# runs are cheap. Pass --force to reinstall from scratch. The database is the
+# exception: it is dropped and rebuilt every time, because the suite owns it
+# exclusively and a known-clean one is the point of running this again.
+#
+# Rebuilding it includes installing WordPress into it, which is the difference
+# between preparing an environment and half-preparing one — see the README on
+# `WP_TESTS_SKIP_INSTALL` for what that buys and what it costs.
 #
 # This fetches over HTTPS with curl and tar rather than Subversion. The
 # canonical upstream script needs an svn client, which is one more thing for a
@@ -45,7 +51,16 @@ WP_TESTS_DIR=${WP_TESTS_DIR%/}
 ELEMENTOR_DIR="$WP_CORE_DIR/wp-content/plugins/elementor"
 
 STAGING=""
-cleanup() { [ -n "$STAGING" ] && rm -rf "$STAGING"; }
+
+# An `if` rather than `[ … ] && …`, because this runs on the way out: bash
+# hands the exit trap's own status back as the script's, so the short form
+# would report failure on every successful run — there being nothing left to
+# clean up is the normal case. Silent until something first tried to check.
+cleanup() {
+	if [ -n "$STAGING" ]; then
+		rm -rf "$STAGING"
+	fi
+}
 trap cleanup EXIT
 
 # Unpacked archives are thrown away as soon as they are unpacked rather than
@@ -225,10 +240,26 @@ create_db() {
 	'
 }
 
+# The test library's own installer, invoked exactly as its bootstrap invokes
+# it. Doing it from here rather than leaving it to the bootstrap is the point:
+# the database gets built when the environment is prepared, instead of once per
+# test run for the lifetime of the checkout.
+#
+# The library will still build one itself if asked to, so nothing breaks for a
+# caller that has never heard of this — it is only ever skipped on request.
+install_wordpress() {
+	say "Installing WordPress into $DB_NAME"
+
+	php "$WP_TESTS_DIR/includes/install.php" \
+		"$WP_TESTS_DIR/wp-tests-config.php" no_ms_tests no_core_tests
+}
+
 install_core
 install_elementor
 install_test_suite
 write_config
 create_db
+install_wordpress
 
 say "Ready. WP_TESTS_DIR=$WP_TESTS_DIR WP_CORE_DIR=$WP_CORE_DIR"
+say "The database is installed — set WP_TESTS_SKIP_INSTALL=1 to keep it."
