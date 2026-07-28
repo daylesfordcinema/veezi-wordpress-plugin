@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<ruleset name="veezi-wordpress-plugin">
+	<description>WordPress coding standards for a public plugin.</description>
+
+	<file>.</file>
+	<exclude-pattern>/vendor/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="basepath" value="."/>
+	<arg name="parallel" value="8"/>
+	<arg value="ps"/>
+
+	<config name="minimum_wp_version" value="6.5"/>
+	<config name="testVersion" value="8.2-"/>
+
+	<rule ref="WordPress">
+		<!--
+			Namespaced PSR-4 classes under src/, which is how the plugin's own
+			autoloader finds them. WordPress's hyphenated class-*.php scheme
+			would not resolve.
+		-->
+		<exclude name="WordPress.Files.FileName"/>
+
+		<!--
+			These three require a doc comment on every method and property,
+			including `public function value(): string`. They predate typed
+			signatures, and satisfying them means restating the signature in
+			prose above every accessor. The comments in this codebase are for
+			explaining why something is the way it is; padding them out with
+			generated ones would make the real ones harder to find.
+
+			Comments that *do* say something are still checked: everything
+			below about formatting, tags and spacing stays on.
+		-->
+		<exclude name="Squiz.Commenting.FunctionComment.Missing"/>
+		<exclude name="Squiz.Commenting.VariableComment.Missing"/>
+		<exclude name="Generic.Commenting.DocComment.MissingShort"/>
+	</rule>
+
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="veezi-wordpress-plugin"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="veezi"/>
+				<element value="Veezi\WordPress"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		Tests reach for things production code should not. Resetting the admin
+		menu globals is how a test asks "was this page registered?" twice, and
+		print_r() is the subject of an assertion rather than leftover debugging.
+	-->
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.PHP.DevelopmentFunctions">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<!--
+		`define( Token::CONSTANT, ... )` in a test: the sniff reads the name as
+		the literal "Token::CONSTANT" and cannot see that it resolves to a
+		prefixed one.
+	-->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+</ruleset>

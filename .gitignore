@@ -1,0 +1,28 @@
+# Development dependencies. The shipped plugin is plain PHP and has none at
+# runtime, so this directory never belongs in a release archive either.
+/vendor/
+/.phpunit.result.cache
+/phpunit.xml
+/.phpcs.xml
+/phpcs.xml
+
+# Local overrides and secrets. The Veezi token is a site credential and must
+# never be committed — supply it through the settings screen or the
+# VEEZI_API_TOKEN constant in wp-config.php.
+.env
+.env.*
+
+# Editor and OS noise
+.DS_Store
+*.swp
+/.idea/
+/.vscode/
+
+# Nothing below belongs to a plugin. Ignored so that a stray copy or a mistyped
+# `git add` stages nothing.
+/site/
+/db/
+/plans/
+/dev/
+*.sql
+*.sql.gz
