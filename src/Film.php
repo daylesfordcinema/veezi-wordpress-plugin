@@ -24,6 +24,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * `$genres` is the one field that is not a scalar: a list of names, one term
  * each, already split and tidied.
+ *
+ * `$poster_url` is the full-resolution artwork. Veezi offers two companions to
+ * it that a website has no use for: a 125x182 thumbnail meant for a box-office
+ * screen, and a backdrop which is a second multi-megabyte image.
  */
 final class Film {
 
@@ -36,7 +40,8 @@ final class Film {
 		public readonly int $runtime,
 		public readonly string $distributor,
 		public readonly string $released_on,
-		public readonly string $trailer_url
+		public readonly string $trailer_url,
+		public readonly string $poster_url
 	) {}
 
 	/**
@@ -59,7 +64,8 @@ final class Film {
 			isset( $payload['Duration'] ) ? (int) $payload['Duration'] : 0,
 			isset( $payload['Distributor'] ) ? trim( (string) $payload['Distributor'] ) : '',
 			self::released_on( isset( $payload['OpeningDate'] ) ? (string) $payload['OpeningDate'] : '' ),
-			isset( $payload['FilmTrailerUrl'] ) ? trim( (string) $payload['FilmTrailerUrl'] ) : ''
+			isset( $payload['FilmTrailerUrl'] ) ? trim( (string) $payload['FilmTrailerUrl'] ) : '',
+			isset( $payload['FilmPosterUrl'] ) ? trim( (string) $payload['FilmPosterUrl'] ) : ''
 		);
 	}
 

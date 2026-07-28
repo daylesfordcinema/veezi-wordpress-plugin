@@ -10,7 +10,13 @@ declare( strict_types = 1 );
 namespace Veezi\WordPress\Tests\Support;
 
 use DateTimeImmutable;
+use DateTimeZone;
+use Veezi\WordPress\Client;
+use Veezi\WordPress\ContentModel;
 use Veezi\WordPress\Settings;
+use Veezi\WordPress\Sync;
+use Veezi\WordPress\SyncResult;
+use Veezi\WordPress\Token;
 use WP_UnitTestCase;
 
 /**
@@ -21,6 +27,18 @@ use WP_UnitTestCase;
  * answer for is an error, not a network call.
  */
 abstract class TestCase extends WP_UnitTestCase {
+
+	/**
+	 * Distinctive on purpose: a test can search a whole request for it and
+	 * prove it went nowhere it should not have.
+	 */
+	protected const TOKEN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+	/**
+	 * Where {@see self::film_payload()} says its artwork is. Named here so a
+	 * test arranging different bytes for it cannot drift from the payload.
+	 */
+	protected const POSTER_URL = 'https://images.example.test/media/0000000008';
 
 	protected FakeVeezi $veezi;
 
@@ -39,6 +57,12 @@ abstract class TestCase extends WP_UnitTestCase {
 	public function tear_down(): void {
 		$this->veezi->unregister();
 		delete_option( Settings::OPTION );
+
+		// Posters are real files on disk, and WordPress's own test case does not
+		// clear them. Left behind they accumulate across a run, and the next
+		// test to sideload the same film gets `the-cooks-tale-4.jpg` — so an
+		// assertion about a filename would pass or fail on test order.
+		$this->remove_added_uploads();
 
 		parent::tear_down();
 	}
@@ -164,9 +188,12 @@ abstract class TestCase extends WP_UnitTestCase {
 				),
 				'AudioLanguage'          => null,
 				'GovernmentFilmTitle'    => null,
-				'FilmPosterUrl'          => 'https://images.example.test/cook.png',
-				'FilmPosterThumbnailUrl' => 'https://images.example.test/cook-thumb.jpg',
-				'BackdropImageUrl'       => 'https://images.example.test/cook-backdrop.png',
+				// Artwork is addressed by media id and nothing else: no file
+				// extension, no name, and nothing in the URL saying what the
+				// bytes will turn out to be.
+				'FilmPosterUrl'          => self::POSTER_URL,
+				'FilmPosterThumbnailUrl' => 'https://images.example.test/media/0000000006',
+				'BackdropImageUrl'       => 'https://images.example.test/media/0000000009',
 				'FilmTrailerUrl'         => 'https://www.youtube.com/watch?v=abcdefghijk',
 				'Attributes'             => array(),
 			),
@@ -209,6 +236,144 @@ abstract class TestCase extends WP_UnitTestCase {
 					),
 					$on_sale
 				)
+			)
+		);
+
+		// Whatever artwork these films claim to have, the CDN is serving. A
+		// test wanting different bytes — or none — arranges the same path again
+		// afterwards, which replaces this.
+		foreach ( $films as $film ) {
+			if ( ! empty( $film['FilmPosterUrl'] ) ) {
+				$this->arrange_poster( (string) $film['FilmPosterUrl'] );
+			}
+		}
+	}
+
+	/**
+	 * Serve a poster from the URL a film payload points at.
+	 *
+	 * Small by default, because most tests here are about records rather than
+	 * pixels and every extra one is a real resize. Pass the live dimensions when
+	 * the sizes themselves are the point.
+	 *
+	 * @param string $url    Where the film payload says its poster is.
+	 * @param string $mime   `image/jpeg` or `image/png`.
+	 * @param int    $width  In pixels.
+	 * @param int    $height In pixels.
+	 */
+	protected function arrange_poster( string $url, string $mime = 'image/jpeg', int $width = 350, int $height = 500 ): void {
+		$this->veezi->will_return_image(
+			(string) wp_parse_url( $url, PHP_URL_PATH ),
+			$this->image_bytes( $mime, $width, $height ),
+			$mime
+		);
+	}
+
+	/**
+	 * A real image, made rather than committed.
+	 *
+	 * It has to be genuine: WordPress reads the bytes to decide the file type,
+	 * refuses anything it cannot identify, and then actually resizes it. A
+	 * checked-in fixture would do as well, but this way the shape and the format
+	 * of each one is stated in the test that needs it.
+	 *
+	 * The gradient is not decoration — a single flat colour compresses to almost
+	 * nothing in either format, which would make any comparison between them
+	 * meaningless.
+	 *
+	 * @param  string $mime        `image/jpeg` or `image/png`.
+	 * @param  int    $width       In pixels.
+	 * @param  int    $height      In pixels.
+	 * @param  bool   $transparent Leave the top half of a PNG see-through.
+	 * @return string The encoded image.
+	 */
+	protected function image_bytes( string $mime = 'image/jpeg', int $width = 350, int $height = 500, bool $transparent = false ): string {
+		$canvas = imagecreatetruecolor( $width, $height );
+
+		if ( $transparent ) {
+			imagealphablending( $canvas, false );
+			imagesavealpha( $canvas, true );
+			imagefill( $canvas, 0, 0, imagecolorallocatealpha( $canvas, 0, 0, 0, 127 ) );
+		}
+
+		for ( $y = $transparent ? (int) ( $height / 2 ) : 0; $y < $height; $y++ ) {
+			$shade = (int) round( 255 * $y / max( 1, $height - 1 ) );
+
+			imagefilledrectangle( $canvas, 0, $y, $width - 1, $y, imagecolorallocate( $canvas, $shade, 64, 255 - $shade ) );
+		}
+
+		ob_start();
+
+		if ( 'image/png' === $mime ) {
+			imagepng( $canvas );
+		} else {
+			imagejpeg( $canvas );
+		}
+
+		imagedestroy( $canvas );
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Run a whole sync, at a moment of the test's choosing.
+	 *
+	 * @param string $moment When the run happens, in UTC — every date the sync
+	 *                       decides anything by is relative to this.
+	 */
+	protected function sync_at( string $moment = '2026-08-01 00:00:00' ): SyncResult {
+		$this->store_token( self::TOKEN );
+
+		return ( new Sync( new Client( Token::resolve( new Settings() ) ) ) )
+			->run( new DateTimeImmutable( $moment, new DateTimeZone( 'UTC' ) ) );
+	}
+
+	/**
+	 * The record the sync made for one of Veezi's identifiers.
+	 *
+	 * @param string $post_type Which kind of record.
+	 * @param string $meta_key  The field holding the upstream identifier.
+	 * @param string $upstream  The identifier itself.
+	 */
+	protected function record_for( string $post_type, string $meta_key, string $upstream ): int {
+		$found = get_posts(
+			array(
+				'post_type'   => $post_type,
+				'post_status' => array_keys( get_post_stati() ),
+				'numberposts' => 1,
+				'fields'      => 'ids',
+				'meta_key'    => $meta_key,
+				'meta_value'  => $upstream,
+			)
+		);
+
+		$this->assertNotEmpty( $found, "The sync made no {$post_type} record for {$upstream}." );
+
+		return (int) $found[0];
+	}
+
+	protected function film_record( string $upstream_id ): int {
+		return $this->record_for( ContentModel::FILM, ContentModel::FILM_ID, $upstream_id );
+	}
+
+	/**
+	 * Everything of one kind, oldest first.
+	 *
+	 * @param  string $post_type   Which kind of record to gather up.
+	 * @param  string $post_status Attachments live under `inherit`; everything
+	 *                             else this asks about is `any`.
+	 * @return array<int,int>
+	 */
+	protected function records( string $post_type, string $post_status = 'any' ): array {
+		return get_posts(
+			array(
+				'post_type'        => $post_type,
+				'post_status'      => $post_status,
+				'numberposts'      => -1,
+				'orderby'          => 'ID',
+				'order'            => 'ASC',
+				'fields'           => 'ids',
+				'suppress_filters' => false,
 			)
 		);
 	}

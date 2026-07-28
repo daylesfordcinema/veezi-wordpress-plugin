@@ -21,8 +21,6 @@ use WPDieException;
  */
 final class SettingsPageTest extends TestCase {
 
-	private const TOKEN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
 	private SettingsPage $page;
 
 	public function set_up(): void {

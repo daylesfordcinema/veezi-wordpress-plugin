@@ -9,12 +9,7 @@ namespace Veezi\WordPress\Tests;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Veezi\WordPress\Client;
 use Veezi\WordPress\ContentModel;
-use Veezi\WordPress\Settings;
-use Veezi\WordPress\Sync;
-use Veezi\WordPress\SyncResult;
-use Veezi\WordPress\Token;
 use Veezi\WordPress\Tests\Support\TestCase;
 
 /**
@@ -27,61 +22,8 @@ use Veezi\WordPress\Tests\Support\TestCase;
  */
 final class ProgrammeSyncTest extends TestCase {
 
-	private function sync_at( string $moment = '2026-08-01 00:00:00' ): SyncResult {
-		$this->store_token( 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' );
-
-		return ( new Sync( new Client( Token::resolve( new Settings() ) ) ) )
-			->run( new DateTimeImmutable( $moment, new DateTimeZone( 'UTC' ) ) );
-	}
-
-	/**
-	 * @param  string $post_type Which kind of record to gather up.
-	 * @return array<int,int>
-	 */
-	private function records( string $post_type ): array {
-		return get_posts(
-			array(
-				'post_type'        => $post_type,
-				'post_status'      => 'any',
-				'numberposts'      => -1,
-				'orderby'          => 'ID',
-				'order'            => 'ASC',
-				'fields'           => 'ids',
-				'suppress_filters' => false,
-			)
-		);
-	}
-
-	/**
-	 * The record the sync made for one of Veezi's identifiers.
-	 *
-	 * @param string $post_type Which kind of record.
-	 * @param string $meta_key  The field holding the upstream identifier.
-	 * @param string $upstream  The identifier itself.
-	 */
-	private function record_for( string $post_type, string $meta_key, string $upstream ): int {
-		$found = get_posts(
-			array(
-				'post_type'   => $post_type,
-				'post_status' => array_keys( get_post_stati() ),
-				'numberposts' => 1,
-				'fields'      => 'ids',
-				'meta_key'    => $meta_key,
-				'meta_value'  => $upstream,
-			)
-		);
-
-		$this->assertNotEmpty( $found, "The sync made no {$post_type} record for {$upstream}." );
-
-		return (int) $found[0];
-	}
-
 	private function session_record( int $upstream_id ): int {
 		return $this->record_for( ContentModel::SESSION, ContentModel::SESSION_ID, (string) $upstream_id );
-	}
-
-	private function film_record( string $upstream_id ): int {
-		return $this->record_for( ContentModel::FILM, ContentModel::FILM_ID, $upstream_id );
 	}
 
 	public function test_a_sync_creates_one_record_per_film_and_one_per_session(): void {

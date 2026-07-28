@@ -27,8 +27,20 @@ links out to the cinema's own booking pages and never handles a transaction.
 
 = What is here so far =
 
-This is an early release. It connects to Veezi and confirms which cinema the
-site is talking to. Syncing films and sessions is the next piece of work.
+This is an early release. It connects to Veezi, confirms which cinema the site
+is talking to, and syncs the programme: one record per film and one per
+screening, with showtimes read in the cinema's own timezone, booking links, and
+posters copied into the media library. Listing order and the page-builder
+bindings that display it all are the next pieces of work, and there is no
+scheduled or on-demand trigger yet.
+
+= Posters =
+
+Artwork is copied into the media library and set as the film's featured image,
+so WordPress makes its own sizes from it and the cinema can reuse it elsewhere.
+Veezi serves one full-resolution poster, and the only smaller variant it offers
+is too small for a card, so linking to the originals would cost a visitor
+several megabytes a page view.
 
 = Getting an access token =
 
@@ -68,10 +80,10 @@ renders booking links that take a visitor to the cinema's Veezi checkout.
 = Is any sales data published? =
 
 No, and it is designed not to be. The API returns seat counts and price card
-names alongside the programme; when session syncing lands, the plugin will
-discard them rather than store them, keeping only "sold out" and "few tickets
-left", which is all a visitor needs. All API calls are made server-side, so the
-access token — which can read those figures — never reaches a browser.
+names alongside the programme, and the plugin discards them as it reads rather
+than storing them, keeping only "sold out" and "few tickets left", which is all
+a visitor needs. All API calls are made server-side, so the access token — which
+can read those figures — never reaches a browser.
 
 = Will it work with my theme? =
 

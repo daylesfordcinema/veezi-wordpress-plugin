@@ -1,6 +1,6 @@
 <?php
 /**
- * The post types and taxonomies the programme is stored in.
+ * The post types, taxonomies and image sizes the programme is stored in.
  *
  * @package Veezi\WordPress
  */
@@ -12,7 +12,8 @@ namespace Veezi\WordPress;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers films, sessions and the taxonomies that classify them.
+ * Registers films, sessions, the taxonomies that classify them and the size a
+ * poster is shown at.
  *
  * The programme is kept as ordinary WordPress content rather than in tables of
  * its own, because that is what makes it reachable from the page builder — a
@@ -61,6 +62,13 @@ final class ContentModel {
 	public const FILM_NEXT_SCREENING = '_veezi_next_screening';
 	public const FILM_SESSION_COUNT  = '_veezi_session_count';
 
+	/**
+	 * Which Veezi media a poster was copied from. Kept on the attachment rather
+	 * than the film, because it describes where those bytes came from and stays
+	 * true however the media is reused afterwards.
+	 */
+	public const POSTER_SOURCE = '_veezi_poster_source';
+
 	public const SESSION_ID          = '_veezi_session_id';
 	public const SESSION_FILM        = '_veezi_film';
 	public const SESSION_STARTS      = '_veezi_starts_at';
@@ -73,6 +81,18 @@ final class ContentModel {
 	public const SESSION_FEW_LEFT    = '_veezi_few_tickets_left';
 
 	/**
+	 * The size a card should ask a poster for. Not a field — an image size, and
+	 * part of the same public surface: a template binding to it by name breaks
+	 * if this is renamed.
+	 *
+	 * Upstream artwork is around 1340x1920 and the only smaller variant Veezi
+	 * offers is 125x182, a thumbnail for a box-office screen. WordPress's own
+	 * `medium` is 300px wide, which is thin on a modern display, and `large` is
+	 * generous for a grid. 600 is a card at twice its rendered width.
+	 */
+	public const POSTER_SIZE = 'veezi-poster';
+
+	/**
 	 * Which version of the plugin last rebuilt the site's routing table.
 	 */
 	public const REWRITES_VERSION = 'veezi_rewrites_version';
@@ -80,6 +100,11 @@ final class ContentModel {
 	public static function register(): void {
 		self::register_post_types();
 		self::register_taxonomies();
+
+		// Uncropped: a poster is a designed rectangle whose proportions vary
+		// from one distributor to the next, and cropping to a uniform card
+		// takes the slice with the title on it. A grid can letterbox them.
+		add_image_size( self::POSTER_SIZE, 600, 900, false );
 	}
 
 	/**

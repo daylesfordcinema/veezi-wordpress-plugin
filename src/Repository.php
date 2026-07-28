@@ -34,7 +34,10 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Repository {
 
-	public function __construct( private readonly DateTimeZone $zone ) {}
+	public function __construct(
+		private readonly DateTimeZone $zone,
+		private readonly PosterLibrary $posters = new PosterLibrary()
+	) {}
 
 	/**
 	 * @param Programme         $programme What Veezi says is showing.
@@ -125,6 +128,8 @@ final class Repository {
 				: array(),
 			ContentModel::LISTING
 		);
+
+		$this->posters->attach( $post_id, $film );
 
 		return $post_id;
 	}

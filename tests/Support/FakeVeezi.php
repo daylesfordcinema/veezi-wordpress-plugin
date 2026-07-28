@@ -51,9 +51,41 @@ final class FakeVeezi {
 	 * @param int    $status HTTP status to answer with.
 	 */
 	public function will_return( string $path, mixed $body, int $status = 200 ): void {
-		$this->answers[ $path ] = array(
-			'headers'  => array( 'content-type' => 'application/json' ),
-			'body'     => is_string( $body ) ? $body : (string) wp_json_encode( $body ),
+		$this->answers[ $path ] = $this->response(
+			is_string( $body ) ? $body : (string) wp_json_encode( $body ),
+			'application/json',
+			$status
+		);
+	}
+
+	/**
+	 * Answer requests whose path contains $path with image bytes.
+	 *
+	 * Separate from will_return() only because the body is sent verbatim and
+	 * the content type is the caller's to choose: what the plugin does with a
+	 * poster depends entirely on what the bytes turn out to be, since Veezi's
+	 * media URLs carry no file extension to go on.
+	 *
+	 * @param string $path         Matched against the request URL.
+	 * @param string $bytes        The image itself.
+	 * @param string $content_type What the CDN would call it.
+	 */
+	public function will_return_image( string $path, string $bytes, string $content_type = 'image/jpeg' ): void {
+		$this->answers[ $path ] = $this->response( $bytes, $content_type );
+	}
+
+	/**
+	 * The shape WordPress's HTTP layer hands back.
+	 *
+	 * @param  string $body         Sent verbatim.
+	 * @param  string $content_type What the server calls it.
+	 * @param  int    $status       HTTP status to answer with.
+	 * @return array<string,mixed>
+	 */
+	private function response( string $body, string $content_type, int $status = 200 ): array {
+		return array(
+			'headers'  => array( 'content-type' => $content_type ),
+			'body'     => $body,
 			'response' => array(
 				'code'    => $status,
 				'message' => get_status_header_desc( $status ),
@@ -94,11 +126,43 @@ final class FakeVeezi {
 
 		foreach ( $this->answers as $path => $answer ) {
 			if ( '/' . ltrim( $path, '/' ) === $requested ) {
-				return $answer;
+				return is_array( $answer ) ? $this->deliver( $answer, (array) $args ) : $answer;
 			}
 		}
 
 		return $preempt;
+	}
+
+	/**
+	 * Hand back a response the way the transport would have.
+	 *
+	 * A streaming request — which is how WordPress downloads media — is asked to
+	 * write the body to a file and return an empty one. Short-circuiting
+	 * `pre_http_request` skips the transport that would have done the writing,
+	 * so a fake that only returns a body leaves the caller with a file that
+	 * exists and is empty. That is not a failure any test would think to
+	 * arrange, and it looks exactly like a corrupt download.
+	 *
+	 * @param  array<string,mixed> $answer What this test arranged.
+	 * @param  array<string,mixed> $args   How the plugin asked for it.
+	 * @return array<string,mixed>
+	 */
+	private function deliver( array $answer, array $args ): array {
+		$filename = isset( $args['filename'] ) ? (string) $args['filename'] : '';
+
+		if ( empty( $args['stream'] ) || '' === $filename ) {
+			return $answer;
+		}
+
+		// Writing the file is the transport's job, and this stands in for the
+		// transport. WP_Filesystem is the wrong tool for a test double.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $filename, (string) $answer['body'] );
+
+		$answer['body']     = '';
+		$answer['filename'] = $filename;
+
+		return $answer;
 	}
 
 	/**

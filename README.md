@@ -7,9 +7,10 @@ the ticketing system instead of being retyped from it.
 The integration is **read-only**. Ticket sales stay in Veezi; the plugin renders
 links out to the cinema's own booking pages and never handles a transaction.
 
-> **Status: early.** This release connects to Veezi and syncs the programme into
-> WordPress. Posters, listing order and the Elementor bindings that display it
-> all are still to come, and there is no scheduled or on-demand trigger yet.
+> **Status: early.** This release connects to Veezi and syncs the programme,
+> posters included, into WordPress. Listing order and the Elementor bindings that
+> display it are still to come, and there is no scheduled or on-demand trigger
+> yet.
 
 ## What it syncs
 
@@ -17,9 +18,9 @@ A sync reads three Veezi endpoints and turns them into ordinary WordPress
 content:
 
 - **Films** (`veezi_film`) — one per film something is scheduled for, carrying
-  the synopsis, runtime, distributor, release date and trailer link, filed under
-  genre and classification taxonomies. Films are never deleted, so a link to one
-  keeps working after its season ends.
+  the synopsis, runtime, distributor, release date, trailer link and poster,
+  filed under genre and classification taxonomies. Films are never deleted, so a
+  link to one keeps working after its season ends.
 - **Sessions** (`veezi_session`) — one per screening, with its start and end,
   its booking link, and whether it is sold out or nearly so.
 
@@ -37,6 +38,29 @@ the right time on the page.
 
 Each session stores both the instant, for sorting and filtering, and the time
 written out, so nothing has to convert it again to print it.
+
+### Posters
+
+Artwork is copied into the media library and set as the film's featured image,
+rather than linked to. Veezi serves one full-resolution poster — around
+1340×1920, and the lossless ones reach five megabytes — and the only smaller
+variant it offers is 125×182, a thumbnail meant for a box-office screen. Linking
+a nine-film listing to the originals would be eight megabytes a page view.
+
+Once it is in the library WordPress makes its own sizes, including
+`veezi-poster` at 600px wide for a card, and the cinema can reuse the artwork in
+a newsletter without going back to the ticketing system for it. The same nine
+cards then come to around 800KB.
+
+Lossless posters are recompressed as WebP, which is worth roughly ten times its
+size in that measurement, and WebP specifically because posters carry
+transparency and there is no telling a feathered edge from a title treatment
+designed to sit on the page itself. The file exactly as Veezi sent it is kept
+alongside as the attachment's original.
+
+Artwork is keyed on Veezi's media reference, so a sync running hourly downloads
+nothing for a poster that changes twice a year, and best-effort throughout: a
+film whose artwork is missing or unreachable syncs without one.
 
 ### Programming that has not been announced
 
