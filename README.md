@@ -7,10 +7,10 @@ the ticketing system instead of being retyped from it.
 The integration is **read-only**. Ticket sales stay in Veezi; the plugin renders
 links out to the cinema's own booking pages and never handles a transaction.
 
-> **Status: early.** This release connects to Veezi and syncs the programme,
-> posters included, into WordPress. Listing order and the Elementor bindings that
-> display it are still to come, and there is no scheduled or on-demand trigger
-> yet.
+> **Status: early.** This release connects to Veezi and syncs the programme —
+> posters included, correctly ordered — into WordPress. The Elementor bindings
+> that display it are still to come, and there is no scheduled or on-demand
+> trigger yet.
 
 ## What it syncs
 
@@ -61,6 +61,41 @@ alongside as the attachment's original.
 Artwork is keyed on Veezi's media reference, so a sync running hourly downloads
 nothing for a poster that changes twice a year, and best-effort throughout: a
 film whose artwork is missing or unreachable syncs without one.
+
+### Order, and when a screening stops being one
+
+Both kinds of record carry a rank in WordPress's **menu order** field — films by
+when they next screen, sessions chronologically — rewritten on every sync.
+
+That field specifically because it is the only sortable one a page builder
+offers that means anything here. Elementor's loop grid sorts by published date,
+title, menu order, last modified, comment count or random, and nothing else; for
+synced content its default is worse than useless, because published date is when
+the sync happened to create the record. **Choose "Menu Order" and the listing is
+right**, with nothing to configure and no query identifier to remember. Leave it
+on the default and it comes out in an order that means nothing and reports no
+error, which is the failure this exists to prevent.
+
+The rank is a position — 1, 2, 3 — not a timestamp. The column is a signed
+32-bit integer, and epoch seconds stop fitting in 2038.
+
+Screenings are deleted once they finish, so a listing can be "the next six" with
+no date filter — which the loop grid could not express anyway, its own date
+filter being backwards-looking and reading the published date. The cutoff is the
+end of the film rather than the start of it, so a screening does not disappear
+from the website while there is an audience sitting in it.
+
+That is the latest a screening can survive, not a guarantee of the earliest.
+Anything Veezi stops listing is deleted on the next sync whatever its time says,
+because that is also how a **cancelled** screening stops being sold — and the two
+are indistinguishable from here. In practice Veezi's session feed appears to
+return only future screenings, which would make its cutoff the operative one;
+the plugin does not depend on that either way.
+
+A film whose screenings have all passed leaves the current listing and has its
+next-screening and count emptied, but keeps its record and its address, so a link
+shared while it was on still works. One that returns to the schedule rejoins,
+using the record that was there all along rather than a second copy of it.
 
 ### Programming that has not been announced
 

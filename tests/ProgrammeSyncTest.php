@@ -125,21 +125,69 @@ final class ProgrammeSyncTest extends TestCase {
 
 	/**
 	 * The season is over: nothing is left to sell, so the film drops out of the
-	 * current listing. Its record stays, because somebody may still be holding
-	 * a link to it.
+	 * current listing. Its record and its address stay, because somebody may be
+	 * holding a link to it — and its two forward-looking fields are emptied,
+	 * because a page still advertising a screening that happened last month is
+	 * worse than one saying nothing.
 	 */
-	public function test_a_film_whose_sessions_have_all_passed_is_no_longer_now_showing(): void {
+	public function test_a_film_whose_season_has_ended_keeps_its_page_but_leaves_the_listing(): void {
 		$this->arrange_programme(
 			array( $this->session_payload( array( 'starts' => '2026-08-02T16:30:00' ) ) ),
 			array( $this->film_payload() )
 		);
 
-		$this->sync_at( '2026-09-01 00:00:00' );
-
+		$this->sync_at( '2026-08-01 00:00:00' );
 		$film = $this->film_record( 'film-cook' );
+
+		$this->sync_at( '2026-09-01 00:00:00' );
 
 		$this->assertSame( array(), wp_get_object_terms( $film, ContentModel::LISTING, array( 'fields' => 'slugs' ) ) );
 		$this->assertSame( 'publish', get_post_status( $film ) );
+		$this->assertSame( $film, $this->film_record( 'film-cook' ), 'The record was replaced rather than kept.' );
+		$this->assertStringContainsString( 'the-cook', get_permalink( $film ) );
+
+		$this->assertSame( '', get_post_meta( $film, ContentModel::FILM_NEXT_SCREENING, true ) );
+		$this->assertSame( '0', get_post_meta( $film, ContentModel::FILM_SESSION_COUNT, true ) );
+	}
+
+	/**
+	 * Repertory cinemas bring films back. The record is matched on Veezi's own
+	 * identifier, so the one that has been sitting there all along is the one
+	 * that rejoins — rather than a second copy of the same film appearing
+	 * beside it.
+	 */
+	public function test_a_film_returning_to_the_schedule_rejoins_the_listing(): void {
+		$this->arrange_programme(
+			array( $this->session_payload( array( 'starts' => '2026-08-02T16:30:00' ) ) ),
+			array( $this->film_payload() )
+		);
+
+		$this->sync_at( '2026-08-01 00:00:00' );
+		$film = $this->film_record( 'film-cook' );
+
+		$this->sync_at( '2026-09-01 00:00:00' );
+		$this->assertSame( array(), wp_get_object_terms( $film, ContentModel::LISTING, array( 'fields' => 'slugs' ) ) );
+
+		$this->arrange_programme(
+			array(
+				$this->session_payload(
+					array(
+						'Id'     => 900,
+						'starts' => '2026-09-20T16:30:00',
+					)
+				),
+			),
+			array( $this->film_payload() )
+		);
+
+		$this->sync_at( '2026-09-01 00:00:00' );
+
+		$this->assertSame(
+			array( ContentModel::NOW_SHOWING ),
+			wp_get_object_terms( $film, ContentModel::LISTING, array( 'fields' => 'slugs' ) )
+		);
+		$this->assertCount( 1, $this->records( ContentModel::FILM ) );
+		$this->assertSame( '1', get_post_meta( $film, ContentModel::FILM_SESSION_COUNT, true ) );
 	}
 
 	public function test_an_on_sale_session_carries_a_booking_link(): void {
@@ -796,6 +844,11 @@ final class ProgrammeSyncTest extends TestCase {
 	/**
 	 * Ordering a listing by next screening is a question the page builder
 	 * cannot ask, so the sync answers it in advance.
+	 *
+	 * Both fields describe what is ahead. The count is screenings still to come
+	 * rather than screenings ever scheduled — the third one below has been and
+	 * gone, and a card reading "3 sessions" when two are left would be a lie a
+	 * visitor could check.
 	 */
 	public function test_a_film_records_when_it_next_screens_and_how_often(): void {
 		$this->arrange_programme(
@@ -831,7 +884,7 @@ final class ProgrammeSyncTest extends TestCase {
 			gmdate( 'Y-m-d H:i', (int) get_post_meta( $film, ContentModel::FILM_NEXT_SCREENING, true ) ),
 			'The next screening is the soonest one still to come, not the earliest on record.'
 		);
-		$this->assertSame( '3', get_post_meta( $film, ContentModel::FILM_SESSION_COUNT, true ) );
+		$this->assertSame( '2', get_post_meta( $film, ContentModel::FILM_SESSION_COUNT, true ) );
 	}
 
 	/**

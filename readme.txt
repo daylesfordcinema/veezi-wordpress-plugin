@@ -30,9 +30,21 @@ links out to the cinema's own booking pages and never handles a transaction.
 This is an early release. It connects to Veezi, confirms which cinema the site
 is talking to, and syncs the programme: one record per film and one per
 screening, with showtimes read in the cinema's own timezone, booking links, and
-posters copied into the media library. Listing order and the page-builder
-bindings that display it all are the next pieces of work, and there is no
-scheduled or on-demand trigger yet.
+posters copied into the media library. The page-builder bindings that display it
+all are the next piece of work, and there is no scheduled or on-demand trigger
+yet.
+
+= Ordering a listing =
+
+Films and screenings both carry a rank in WordPress's menu order field — films
+by when they next screen, screenings chronologically — so choosing "Menu Order"
+in a loop grid gives the right order with nothing to configure. The default
+sort is publication date, which for synced content is when the sync happened to
+create the record and means nothing at all.
+
+Screenings are deleted once they finish, so a listing does not have to filter
+them out. A film whose screenings have all passed leaves the current listing but
+keeps its page, so a link shared while it was on still works.
 
 = Posters =
 

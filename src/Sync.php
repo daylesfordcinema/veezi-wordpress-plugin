@@ -52,9 +52,9 @@ final class Sync {
 
 		$zone = CinemaTimezone::resolve( $connection->timezone_identifier() );
 
-		$programme = Programme::assemble( $feeds['sessions'], $feeds['web_sessions'], $feeds['films'], $zone );
+		$programme = Programme::assemble( $feeds['sessions'], $feeds['web_sessions'], $feeds['films'], $zone, $now );
 
-		( new Repository( $zone ) )->store( $programme, $now );
+		( new Repository( $zone ) )->store( $programme );
 
 		return SyncResult::completed(
 			$now,

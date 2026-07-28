@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Turns an assembled programme into posts, terms and metadata.
  *
- * Two rules shape everything here.
+ * Three rules shape everything here.
  *
  * The first is that a sync which changes nothing must *write* nothing. Records
  * are matched on their Veezi identifiers and compared field by field before
@@ -31,6 +31,17 @@ defined( 'ABSPATH' ) || exit;
  * out in the cinema's timezone rather than the site's. A WordPress install
  * whose own timezone is unset or simply wrong is common, and it should still
  * show the right time on the page.
+ *
+ * The third is that both kinds of record carry a rank in `menu_order`, written
+ * from the order the programme comes in — films by when they next screen,
+ * sessions chronologically. Neither of the fields above can order a listing:
+ * the page builder's loop grid sorts by published date, title, menu order, last
+ * modified, comment count or random, and nothing else. For synced content its
+ * default is actively misleading, because published date is when the sync
+ * happened to create the record. A listing left alone would come out in a
+ * meaningless order and report no error at all, so the one sortable field there
+ * is gets the answer written into it. A position rather than a timestamp: the
+ * column is a signed 32-bit integer, and epoch seconds run out in 2038.
  */
 final class Repository {
 
@@ -40,25 +51,26 @@ final class Repository {
 	) {}
 
 	/**
-	 * @param Programme         $programme What Veezi says is showing.
-	 * @param DateTimeImmutable $now       The moment the sync is running at.
+	 * @param Programme $programme What Veezi says is still to come.
 	 */
-	public function store( Programme $programme, DateTimeImmutable $now ): void {
-		$this->store_sessions( $programme, $this->store_films( $programme, $now ) );
+	public function store( Programme $programme ): void {
+		$this->store_sessions( $programme, $this->store_films( $programme ) );
 		$this->forget_what_veezi_no_longer_lists( $programme );
 	}
 
 	/**
-	 * @param  Programme         $programme What Veezi says is showing.
-	 * @param  DateTimeImmutable $now       The moment the sync is running at.
+	 * @param  Programme $programme What Veezi says is still to come.
 	 * @return array<string,int> Veezi film identifier to WordPress post id.
 	 */
-	private function store_films( Programme $programme, DateTimeImmutable $now ): array {
+	private function store_films( Programme $programme ): array {
 		$existing = $this->index( ContentModel::FILM, ContentModel::FILM_ID );
 		$stored   = array();
+		$rank     = 0;
 
 		foreach ( $programme->films() as $film ) {
-			$post_id = $this->store_film( $film, $programme, $now, $existing[ $film->id ] ?? 0 );
+			++$rank;
+
+			$post_id = $this->store_film( $film, $programme, $rank, $existing[ $film->id ] ?? 0 );
 
 			if ( $post_id > 0 ) {
 				$stored[ $film->id ] = $post_id;
@@ -68,10 +80,11 @@ final class Repository {
 		return $stored;
 	}
 
-	private function store_film( Film $film, Programme $programme, DateTimeImmutable $now, int $post_id ): int {
+	private function store_film( Film $film, Programme $programme, int $rank, int $post_id ): int {
 		$post = array(
 			'post_type'    => ContentModel::FILM,
 			'post_title'   => $this->as_plain_text( $film->title ),
+			'menu_order'   => $rank,
 
 			// Sanitised here rather than left to WordPress, because WordPress
 			// only strips markup for users who lack the unfiltered_html
@@ -98,7 +111,7 @@ final class Repository {
 			return 0;
 		}
 
-		$next_screening = $programme->next_screening( $film->id, $now );
+		$next_screening = $programme->next_screening( $film->id );
 
 		$this->write_meta(
 			$post_id,
@@ -123,7 +136,7 @@ final class Repository {
 		);
 		wp_set_object_terms(
 			$post_id,
-			$programme->is_showing( $film->id, $now )
+			$programme->is_on_sale( $film->id )
 				? array( ContentModel::listing_term( ContentModel::NOW_SHOWING ) )
 				: array(),
 			ContentModel::LISTING
@@ -135,22 +148,26 @@ final class Repository {
 	}
 
 	/**
-	 * @param Programme         $programme  What Veezi says is showing.
+	 * @param Programme         $programme  What Veezi says is still to come.
 	 * @param array<string,int> $film_posts Veezi film identifier to post id.
 	 */
 	private function store_sessions( Programme $programme, array $film_posts ): void {
 		$existing = $this->index( ContentModel::SESSION, ContentModel::SESSION_ID );
+		$rank     = 0;
 
 		foreach ( $programme->sessions() as $session ) {
+			++$rank;
+
 			$this->store_session(
 				$session,
 				$film_posts[ $session->film_id ] ?? 0,
+				$rank,
 				$existing[ (string) $session->id ] ?? 0
 			);
 		}
 	}
 
-	private function store_session( Session $session, int $film_post, int $post_id ): void {
+	private function store_session( Session $session, int $film_post, int $rank, int $post_id ): void {
 		$starts_text = $this->in_words( $session->starts_at );
 		$title       = $this->as_plain_text( $session->title );
 
@@ -158,6 +175,7 @@ final class Repository {
 			'post_type'   => ContentModel::SESSION,
 			'post_title'  => '' === $title ? $starts_text : sprintf( '%s — %s', $title, $starts_text ),
 			'post_status' => $session->on_sale ? 'publish' : 'draft',
+			'menu_order'  => $rank,
 		);
 
 		$post_id = $this->upsert( $post_id, $post );
@@ -184,22 +202,28 @@ final class Repository {
 	}
 
 	/**
-	 * Take down whatever Veezi has stopped listing.
+	 * Take down whatever is no longer to come.
 	 *
-	 * A cancelled screening is the case that matters. Left alone it keeps a
-	 * published record and a live booking link, so the site goes on offering
-	 * tickets for something that is not happening — worse than showing nothing.
+	 * Two things reach this. A cancelled screening is the one that matters most:
+	 * left alone it keeps a published record and a live booking link, so the site
+	 * goes on offering tickets for something that is not happening — worse than
+	 * showing nothing. The other is a screening that has simply been and gone,
+	 * which the programme no longer holds, and which is deleted for the same
+	 * reason: so that a listing can be "the next six" without a date filter.
 	 *
 	 * Films are treated differently: they are never deleted, because a link to
-	 * one has to keep working after its season. A film Veezi no longer
-	 * schedules simply leaves the current listing, and its page stays.
+	 * one has to keep working after its season. A film with nothing left to
+	 * screen leaves the current listing and has its two forward-looking fields
+	 * emptied — otherwise a page would go on advertising a next screening that
+	 * happened last month — and its record and address stay exactly where they
+	 * were.
 	 *
 	 * Only reached once every feed has arrived intact, so a failed fetch can
 	 * never trigger it. An empty programme, though, genuinely means an empty
 	 * programme — a cinema between seasons has nothing on, and saying so is
 	 * right.
 	 *
-	 * @param Programme $programme What Veezi says is showing.
+	 * @param Programme $programme What Veezi says is still to come.
 	 */
 	private function forget_what_veezi_no_longer_lists( Programme $programme ): void {
 		$listed = $programme->sessions();
@@ -211,11 +235,37 @@ final class Repository {
 		}
 
 		$scheduled = $programme->films();
+		$rank      = count( $scheduled );
 
 		foreach ( $this->index( ContentModel::FILM, ContentModel::FILM_ID ) as $upstream_id => $post_id ) {
-			if ( ! isset( $scheduled[ (string) $upstream_id ] ) ) {
-				wp_set_object_terms( $post_id, array(), ContentModel::LISTING );
+			if ( isset( $scheduled[ (string) $upstream_id ] ) ) {
+				continue;
 			}
+
+			// Ranked on past the films that are still showing, rather than left
+			// holding whichever position it had when its season ended — which
+			// would otherwise be position 1, shared with whatever is showing
+			// first now. Their order among themselves is the order they were
+			// first synced in: arbitrary, but the same on every run, which is
+			// what stops this rewriting ranks for ever.
+			++$rank;
+
+			$this->upsert(
+				$post_id,
+				array(
+					'post_type'  => ContentModel::FILM,
+					'menu_order' => $rank,
+				)
+			);
+
+			wp_set_object_terms( $post_id, array(), ContentModel::LISTING );
+			$this->write_meta(
+				$post_id,
+				array(
+					ContentModel::FILM_NEXT_SCREENING => '',
+					ContentModel::FILM_SESSION_COUNT  => '0',
+				)
+			);
 		}
 	}
 
@@ -271,6 +321,16 @@ final class Repository {
 	/**
 	 * Save, but only if saving would actually alter something.
 	 *
+	 * Compared as strings because these are not all of a type: `menu_order` is
+	 * an integer going in and arrives back from the database as a string, and a
+	 * strict comparison of the two would find a difference in every record on
+	 * every run — which is exactly the churn this method exists to prevent.
+	 *
+	 * The list is every field written, and has to stay that way. A field left
+	 * off is one whose changes are computed, discarded, and computed again next
+	 * run: the rank spent a while in that state, which looked like ordering
+	 * simply not working.
+	 *
 	 * @param int                 $post_id Which record.
 	 * @param array<string,mixed> $post    What it should say.
 	 */
@@ -281,8 +341,8 @@ final class Repository {
 			return;
 		}
 
-		foreach ( array( 'post_title', 'post_content', 'post_status' ) as $field ) {
-			if ( array_key_exists( $field, $post ) && $existing->$field !== $post[ $field ] ) {
+		foreach ( array( 'post_title', 'post_content', 'post_status', 'menu_order' ) as $field ) {
+			if ( array_key_exists( $field, $post ) && (string) $existing->$field !== (string) $post[ $field ] ) {
 				$post['ID'] = $post_id;
 				wp_update_post( wp_slash( $post ) );
 
