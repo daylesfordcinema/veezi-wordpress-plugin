@@ -54,8 +54,7 @@ Against a site with the programme synced and at least one film screening.
 ## After tagging
 
 Pushing a `v*` tag runs the ordinary checks, then builds the archive and
-attaches it to the release. Confirm the release has a
-`veezi-wordpress-plugin-<version>.zip` on it, and that installing that file
-through **Plugins → Add New → Upload Plugin** on a clean site activates without
-error. The archive is the same file the deploy uses, so this is also the
-recovery route if the deploy is unavailable.
+attaches it to the release — the README's "Releasing" section has the detail.
+Confirm the release has a `veezi-wordpress-plugin-<version>.zip` on it, and that
+installing that file through **Plugins → Add New → Upload Plugin** on a clean
+site activates without error.
