@@ -609,6 +609,36 @@ final class ProgrammeSyncTest extends TestCase {
 		$this->assertStringNotContainsString( 'price', strtolower( $stored ) );
 	}
 
+	/**
+	 * And nowhere else either.
+	 *
+	 * Post meta is where these would obviously land, but it is not the only
+	 * place a plugin writes: an option, a transient, a remembered response. The
+	 * guarantee is that the commercial fields are gone the moment the programme
+	 * is read, and a guarantee with one exception in it is not a guarantee —
+	 * whoever finds the exception is not going to be us.
+	 *
+	 * Matched on Veezi's own field names, which cannot appear in a WordPress
+	 * option by coincidence the way a bare number could.
+	 */
+	public function test_box_office_figures_reach_no_other_corner_of_the_database(): void {
+		global $wpdb;
+
+		$this->arrange_programme(
+			array( $this->session_payload() ),
+			array( $this->film_payload() )
+		);
+
+		$this->sync_at();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Reading the whole options table is the assertion.
+		$everything = implode( ' ', (array) $wpdb->get_col( "SELECT option_value FROM {$wpdb->options}" ) );
+
+		foreach ( array( 'SeatsSold', 'SeatsAvailable', 'SeatsHeld', 'PriceCardName', 'Weekday Matinee Concession' ) as $secret ) {
+			$this->assertStringNotContainsString( $secret, $everything, 'A Veezi payload was written into an option.' );
+		}
+	}
+
 	public function test_a_second_identical_sync_creates_nothing_and_changes_nothing(): void {
 		$this->arrange_programme(
 			array(

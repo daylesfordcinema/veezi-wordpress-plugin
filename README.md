@@ -8,10 +8,9 @@ The integration is **read-only**. Ticket sales stay in Veezi; the plugin renders
 links out to the cinema's own booking pages and never handles a transaction.
 
 > **Status: early.** This release connects to Veezi, syncs the programme —
-> posters included, correctly ordered — into WordPress, and gives Elementor the
-> fields and the one widget a film listing needs. The single film page and the
-> chronological calendar are still to come, and there is no scheduled or
-> on-demand trigger yet.
+> posters included, correctly ordered — into WordPress on a schedule, and gives
+> Elementor the fields and the one widget a film listing needs. The single film
+> page and the chronological calendar are still to come.
 
 ## What it syncs
 
@@ -110,6 +109,105 @@ next month's programme before the cinema chooses to.
 A sync is keyed on Veezi's own identifiers and compares before it writes, so
 running it against unchanged data creates nothing, updates nothing, and leaves
 every modification date alone.
+
+## Keeping it up to date
+
+A sync runs **hourly**, on WordPress's own cron, so nobody has to remember
+anything. Hourly is more often than a cinema's programme changes and costs
+almost nothing: three small JSON reads, and artwork only for a poster that is
+new.
+
+That it is WordPress's cron matters. A host can drive that queue from outside,
+which is what this cinema's server does — request-triggered cron is switched off
+and the platform runs it on a real schedule. So the programme refreshes on a
+site nobody has visited since yesterday, and the plugin never tries to spawn a
+run of its own.
+
+The event heals. It goes on the schedule at activation and is checked again on
+every request, because the ways it can vanish are ordinary ones — a database
+restored from before the plugin existed, or an update applied in place, which
+reactivates silently and so skips the activation hook. A site whose event has
+gone shows no error at all; the programme simply stops changing, which is the
+hardest kind of failure to notice.
+
+To sync more or less often:
+
+```php
+add_filter( 'veezi_sync_recurrence', fn() => 'twicedaily' );
+```
+
+Any interval registered with WordPress works. One it does not know is ignored
+rather than obeyed, because `wp_schedule_event()` refuses an unknown name and a
+typo would otherwise leave a site that never syncs again.
+
+### Syncing on demand
+
+**Settings → Veezi** has a **Sync now** button for the last-minute change: a
+session added at the box office ten minutes ago is on the website ten minutes
+later rather than at the top of the hour. It ignores anything cached, because
+that is exactly the question being re-asked.
+
+The same screen shows when the programme last synced and what that run did, and
+when the next one is due.
+
+### Only one at a time
+
+A first sync has a poster to fetch per film and can outlast the gap between two
+cron firings; and pressing **Sync now** while one is going is one click. So a
+run takes a lock for its duration, and anything that finds the lock held stands
+aside — which is not a failure, and is not reported as one. The lock expires
+after fifteen minutes, so a run killed by a PHP timeout or a restarted container
+does not stop the site syncing forever.
+
+### When Veezi is unreachable
+
+An outage at the ticketing provider must not blank the cinema's website, so the
+sync fetches **every** feed before it writes **anything**. If any part of the
+fetch fails, the run stops and whatever synced last is still on the site,
+published, ordered and complete. A partial answer is never applied — a feed that
+arrives reporting fewer screenings than the site has, followed by a feed that
+fails, would otherwise delete screenings on the strength of half a reply.
+
+A failed run:
+
+- leaves the programme exactly as it was, and shows a visitor nothing at all;
+- writes a line to the server's PHP error log, ungated by `WP_DEBUG` — which is
+  off on a production site, the one place the record matters;
+- raises an admin notice, so the cinema finds out before a customer does.
+
+The notice puts itself away: nothing dismisses it except the next run that
+works. The record of the last **successful** sync is kept separately and is not
+disturbed by a failure, because through an outage the programme on the page is
+still exactly what that run put there.
+
+### Calling Veezi no more than necessary
+
+Veezi publishes no rate limits and marks every response uncacheable, so how
+often this plugin calls is entirely its own restraint. Most of that is
+structural: the site renders from WordPress content and never calls the API to
+draw a page, so a listing seen by ten thousand visitors costs Veezi nothing.
+What is left is bursts — two cron firings catching up after downtime, a run
+retried straight after a partial failure — and responses are cached for five
+minutes to absorb them.
+
+Deliberately short: a cache long enough to matter is a cache long enough to hide
+a programme change from a cinema that has just made one. A failure is never
+cached, since remembering an outage would extend it past the moment Veezi came
+back; the cache is keyed on the token as well as the endpoint, so a site
+repointed at another cinema's account is never answered with the last one's; and
+**Test connection** never uses it, because it exists to ask Veezi *now*.
+
+### If the site keeps a different time from the cinema
+
+Showtimes are converted in the cinema's own timezone wherever they are printed,
+so they stay right whatever WordPress is set to. Everything *else* dated on a
+WordPress site is the site timezone's doing, though, from a post's publication
+time to whatever a page builder prints from a date field.
+
+So when the two disagree, an administrator gets a notice naming both and
+pointing at Settings → General. Compared as clocks rather than as names —
+Melbourne and Sydney are two names for one clock, and warning about that would
+teach an administrator to ignore the warning.
 
 ## Building the listing
 
@@ -219,6 +317,24 @@ Australia/New Zealand one; point it elsewhere with a filter:
 
 ```php
 add_filter( 'veezi_api_base_url', fn() => 'https://api.uk.veezi.com' );
+```
+
+### Deactivating and deleting
+
+Deactivating takes the scheduled sync off the queue and withdraws the film
+routes, and leaves everything else where it is — a deactivated plugin should be
+a reversible mistake.
+
+Deleting removes what the plugin configured itself with: the access token, the
+schedule, the lock, the cinema's timezone and the notes about the last run. It
+does **not** delete films, sessions or posters. A film has a public address
+somebody may have linked to, its poster is in the media library because this
+plugin encourages reusing it, and WordPress does not delete a site's posts when
+a plugin is deleted. To remove them as well:
+
+```sh
+wp post delete $( wp post list --post_type=veezi_session --format=ids ) --force
+wp post delete $( wp post list --post_type=veezi_film --format=ids ) --force
 ```
 
 The cinema's timezone is read from the Veezi account and translated from

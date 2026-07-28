@@ -61,6 +61,30 @@ final class Client {
 
 	public const FILMS = '/v4/film';
 
+	/**
+	 * The one endpoint whose answer may be written down.
+	 *
+	 * The film catalogue and nothing else, for two reasons that happen to point
+	 * the same way.
+	 *
+	 * It is the only one worth caching: 153KB and the slowest of the three a
+	 * sync reads, and a catalogue of titles, synopses and artwork that barely
+	 * changes from one week to the next.
+	 *
+	 * And it is the only one safe to cache. Both session feeds carry
+	 * `SeatsSold`, `SeatsAvailable`, `SeatsHeld` and `PriceCardName`, and
+	 * `/v1/session` carries programming the cinema has not announced. This
+	 * plugin's guarantee is that those are discarded *as the programme is read*
+	 * rather than filtered out later — so there is nothing to leak through a
+	 * REST route, an export or a careless template, because they were never
+	 * written down. A cache holding the raw feed would write them into
+	 * `wp_options` in plaintext and break that guarantee at its root.
+	 *
+	 * Their freshness is also the freshness that matters: a cached session feed
+	 * is exactly how "Sync now" would fail to see the change it was pressed for.
+	 */
+	private const CACHEABLE = array( self::FILMS );
+
 	/** Case-sensitive, and the only accepted way to present the token. */
 	private const TOKEN_HEADER = 'VeeziAccessToken';
 
@@ -88,7 +112,10 @@ final class Client {
 	 * left over from another cinema.
 	 */
 	public function check_connection(): ConnectionResult {
-		$site = $this->get( self::SITE );
+		// Never from the cache. This exists to ask Veezi *now* — after revoking
+		// a token at their end, say — and an answer from four minutes ago would
+		// report a credential as working when it has stopped.
+		$site = $this->fresh( self::SITE );
 
 		if ( is_wp_error( $site ) ) {
 			return ConnectionResult::failure( $site->get_error_code(), $site->get_error_message() );
@@ -115,10 +142,41 @@ final class Client {
 	}
 
 	/**
+	 * Read an endpoint, reusing a recent answer where that is allowed.
+	 *
 	 * @param  string $path Path below the regional endpoint, e.g. `/v1/site`.
 	 * @return array<mixed>|WP_Error Decoded JSON, or why not.
 	 */
 	public function get( string $path ) {
+		if ( ! in_array( $path, self::CACHEABLE, true ) ) {
+			return $this->fresh( $path );
+		}
+
+		$url    = $this->url_for( $path );
+		$cached = ResponseCache::recall( $url, $this->token->value() );
+
+		if ( null !== $cached ) {
+			return $cached;
+		}
+
+		$response = $this->fresh( $path );
+
+		// Never a failure. Remembering an outage would extend it past the
+		// moment Veezi came back.
+		if ( ! is_wp_error( $response ) ) {
+			ResponseCache::remember( $url, $this->token->value(), $response );
+		}
+
+		return $response;
+	}
+
+	/**
+	 * The same, but always from Veezi.
+	 *
+	 * @param  string $path Path below the regional endpoint, e.g. `/v1/site`.
+	 * @return array<mixed>|WP_Error Decoded JSON, or why not.
+	 */
+	private function fresh( string $path ) {
 		if ( ! $this->token->is_present() ) {
 			return new WP_Error(
 				self::ERROR_NO_TOKEN,
@@ -127,7 +185,7 @@ final class Client {
 		}
 
 		$response = wp_remote_get(
-			$this->base_url() . '/' . ltrim( $path, '/' ),
+			$this->url_for( $path ),
 			array(
 				'timeout' => self::TIMEOUT_SECONDS,
 				'headers' => array(
@@ -194,6 +252,10 @@ final class Client {
 		}
 
 		return $decoded;
+	}
+
+	private function url_for( string $path ): string {
+		return $this->base_url() . '/' . ltrim( $path, '/' );
 	}
 
 	/**

@@ -13,6 +13,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Veezi\WordPress\Client;
 use Veezi\WordPress\ContentModel;
+use Veezi\WordPress\ResponseCache;
 use Veezi\WordPress\Settings;
 use Veezi\WordPress\Sync;
 use Veezi\WordPress\SyncResult;
@@ -42,6 +43,15 @@ abstract class TestCase extends WP_UnitTestCase {
 
 	protected FakeVeezi $veezi;
 
+	/**
+	 * Where this test's PHP error log is collected. See {@see self::logged()}.
+	 *
+	 * @var string
+	 */
+	private string $log_file = '';
+
+	private string $log_setting_before = '';
+
 	public function set_up(): void {
 		parent::set_up();
 
@@ -50,6 +60,8 @@ abstract class TestCase extends WP_UnitTestCase {
 		// raised by whichever tests ran before it.
 		$GLOBALS['wp_settings_errors'] = array();
 
+		$this->capture_the_error_log();
+
 		$this->veezi = new FakeVeezi();
 		$this->veezi->register();
 	}
@@ -57,6 +69,7 @@ abstract class TestCase extends WP_UnitTestCase {
 	public function tear_down(): void {
 		$this->veezi->unregister();
 		delete_option( Settings::OPTION );
+		$this->release_the_error_log();
 
 		// Anything that looped over a record left it set up as the current post.
 		wp_reset_postdata();
@@ -332,8 +345,56 @@ abstract class TestCase extends WP_UnitTestCase {
 	protected function sync_at( string $moment = '2026-08-01 00:00:00' ): SyncResult {
 		$this->store_token( self::TOKEN );
 
-		return ( new Sync( new Client( Token::resolve( new Settings() ) ) ) )
-			->run( new DateTimeImmutable( $moment, new DateTimeZone( 'UTC' ) ) );
+		// Each sync in a test is a fresh look at whatever that test has just
+		// arranged. On a real site that is what happens anyway: runs are an
+		// hour apart and the response cache is minutes long, so it never spans
+		// two of them. Leaving it in place here would only mean a test that
+		// changes the upstream between syncs quietly tests the cache instead.
+		ResponseCache::forget();
+
+		$result = ( new Sync( new Client( Token::resolve( new Settings() ) ) ) )
+			->attempt( new DateTimeImmutable( $moment, new DateTimeZone( 'UTC' ) ) );
+
+		$this->assertNotNull( $result, 'The sync stood down: something left the lock held.' );
+
+		return $result;
+	}
+
+	/**
+	 * One film, screening as many times as the test needs.
+	 *
+	 * Far enough ahead to still be upcoming whenever the suite runs, and at a
+	 * round hour so that a formatted time is worth asserting on.
+	 *
+	 * @param int $screenings How many sessions Veezi is currently reporting.
+	 */
+	protected function veezi_is_showing( int $screenings = 1 ): void {
+		$sessions = array();
+
+		for ( $n = 0; $n < $screenings; $n++ ) {
+			$sessions[] = $this->session_payload(
+				array(
+					'Id'     => 2000 + $n,
+					'starts' => sprintf( '2036-08-%02dT19:00:00', $n + 1 ),
+				)
+			);
+		}
+
+		$this->arrange_programme( $sessions, array( $this->film_payload() ) );
+	}
+
+	/**
+	 * How many times the plugin asked Veezi for one endpoint.
+	 *
+	 * @param string $path Matched against each request URL.
+	 */
+	protected function requests_to( string $path ): int {
+		return count(
+			array_filter(
+				$this->veezi->requests,
+				static fn ( array $request ): bool => str_contains( $request['url'], $path )
+			)
+		);
 	}
 
 	/**
@@ -467,6 +528,34 @@ abstract class TestCase extends WP_UnitTestCase {
 
 	protected function store_token( string $token ): void {
 		update_option( Settings::OPTION, array( 'token' => $token ) );
+	}
+
+	/**
+	 * Everything the plugin wrote to the server's log during this test.
+	 *
+	 * PHP's error log is a real destination rather than something the plugin
+	 * owns, so it is redirected to a file per test instead of stubbed. That
+	 * keeps a deliberate log line assertable, and keeps the dozens of tests
+	 * which provoke a failure on purpose from spraying it across the run.
+	 */
+	protected function logged(): string {
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- A temporary file outside WordPress, made by this test.
+		return (string) file_get_contents( $this->log_file );
+	}
+
+	private function capture_the_error_log(): void {
+		$this->log_setting_before = (string) ini_get( 'error_log' );
+		$this->log_file           = (string) tempnam( sys_get_temp_dir(), 'veezi-log-' );
+
+		// phpcs:ignore WordPress.PHP.IniSet.Risky -- Redirecting the log this suite reads back, for the length of one test.
+		ini_set( 'error_log', $this->log_file );
+	}
+
+	private function release_the_error_log(): void {
+		// phpcs:ignore WordPress.PHP.IniSet.Risky -- Restoring what set_up() borrowed.
+		ini_set( 'error_log', $this->log_setting_before );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- A temporary file outside WordPress, made by this test.
+		unlink( $this->log_file );
 	}
 
 	protected function become_administrator(): int {

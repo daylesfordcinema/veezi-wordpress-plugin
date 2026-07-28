@@ -7,9 +7,16 @@ declare( strict_types = 1 );
 
 namespace Veezi\WordPress\Tests;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use Veezi\WordPress\Admin\SettingsPage;
+use Veezi\WordPress\ContentModel;
 use Veezi\WordPress\Plugin;
+use Veezi\WordPress\Schedule;
 use Veezi\WordPress\Settings;
+use Veezi\WordPress\SyncLock;
+use Veezi\WordPress\SyncLog;
+use Veezi\WordPress\SyncResult;
 use Veezi\WordPress\Tests\Support\TestCase;
 use WPDieException;
 
@@ -189,7 +196,7 @@ final class SettingsPageTest extends TestCase {
 		$this->veezi->will_return( '/v1/site', $this->site_payload( array( 'Name' => 'Regal Picture Palace' ) ) );
 
 		( new Settings() )->update( array( 'token' => self::TOKEN ) );
-		$html = $this->render( fn() => $this->page->render_connection_notice() );
+		$html = $this->render( fn() => $this->page->render_notice() );
 
 		$this->assertStringContainsString( 'Regal Picture Palace', $html );
 	}
@@ -201,11 +208,11 @@ final class SettingsPageTest extends TestCase {
 
 		// Consume the check the first save earned.
 		$this->veezi->will_return( '/v1/site', $this->site_payload() );
-		$this->render( fn() => $this->page->render_connection_notice() );
+		$this->render( fn() => $this->page->render_notice() );
 		$before = count( $this->veezi->requests );
 
 		$settings->update( array( 'token' => self::TOKEN ) );
-		$this->render( fn() => $this->page->render_connection_notice() );
+		$this->render( fn() => $this->page->render_notice() );
 
 		$this->assertSame( $before, count( $this->veezi->requests ) );
 	}
@@ -260,7 +267,7 @@ final class SettingsPageTest extends TestCase {
 		$this->veezi->will_return( '/v1/site', $this->site_payload( array( 'Name' => 'Regal Picture Palace' ) ) );
 
 		$this->page->run_connection_check();
-		$html = $this->render( fn() => $this->page->render_connection_notice() );
+		$html = $this->render( fn() => $this->page->render_notice() );
 
 		$this->assertStringContainsString( 'Regal Picture Palace', $html );
 		$this->assertStringContainsString( 'notice-success', $html );
@@ -271,7 +278,7 @@ final class SettingsPageTest extends TestCase {
 		$this->veezi->will_return( '/v1/site', '', 403 );
 
 		$this->page->run_connection_check();
-		$html = $this->render( fn() => $this->page->render_connection_notice() );
+		$html = $this->render( fn() => $this->page->render_notice() );
 
 		$this->assertStringContainsString( 'notice-error', $html );
 	}
@@ -281,8 +288,8 @@ final class SettingsPageTest extends TestCase {
 		$this->veezi->will_return( '/v1/site', $this->site_payload() );
 
 		$this->page->run_connection_check();
-		$this->render( fn() => $this->page->render_connection_notice() );
-		$second = $this->render( fn() => $this->page->render_connection_notice() );
+		$this->render( fn() => $this->page->render_notice() );
+		$second = $this->render( fn() => $this->page->render_notice() );
 
 		$this->assertSame( '', trim( $second ) );
 	}
@@ -297,7 +304,7 @@ final class SettingsPageTest extends TestCase {
 		$this->page->run_connection_check();
 
 		$this->become_administrator();
-		$html = $this->render( fn() => $this->page->render_connection_notice() );
+		$html = $this->render( fn() => $this->page->render_notice() );
 
 		$this->assertSame( '', trim( $html ) );
 	}
@@ -308,8 +315,159 @@ final class SettingsPageTest extends TestCase {
 		$this->veezi->will_fail( '/v1/site', "Failed connecting with {$secret}" );
 
 		$this->page->run_connection_check();
-		$html = $this->render( fn() => $this->page->render_connection_notice() );
+		$html = $this->render( fn() => $this->page->render_notice() );
 
 		$this->assertStringNotContainsString( $secret, $html );
+	}
+
+	/**
+	 * The same, for the button beside it: an administrator with a token saved
+	 * and a valid nonce, about to press "Sync now".
+	 */
+	private function arrange_administrator_ready_to_sync(): void {
+		$this->become_administrator();
+		$this->store_token( self::TOKEN );
+
+		// Saving a token earns a connection check on the next page load, and
+		// its answer is a notice. These tests are about the button underneath,
+		// so that page load happens here and is done with.
+		$this->veezi->will_return( '/v1/site', $this->site_payload() );
+		$this->render( fn() => $this->page->render_notice() );
+
+		$_REQUEST['_wpnonce'] = wp_create_nonce( SettingsPage::SYNC_ACTION );
+	}
+
+	public function test_the_screen_says_when_a_site_has_never_synced(): void {
+		$this->become_administrator();
+
+		$html = $this->render( array( $this->page, 'render' ) );
+
+		$this->assertStringContainsString( 'never synced', $html );
+	}
+
+	public function test_the_screen_says_when_the_programme_last_synced(): void {
+		$this->become_administrator();
+		update_option( 'date_format', 'Y-m-d' );
+		update_option( 'time_format', 'H:i' );
+		SyncLog::record(
+			SyncResult::completed(
+				new DateTimeImmutable( '2026-07-28 03:04:00', new DateTimeZone( 'UTC' ) ),
+				'Synced 9 films and 32 sessions from the Regal.'
+			)
+		);
+
+		$html = $this->render( array( $this->page, 'render' ) );
+
+		$this->assertStringContainsString( '2026-07-28 03:04', $html );
+		$this->assertStringContainsString( 'Synced 9 films and 32 sessions from the Regal.', $html );
+	}
+
+	public function test_the_screen_says_when_the_next_sync_is_due(): void {
+		$this->become_administrator();
+		Schedule::ensure();
+
+		$this->assertStringContainsString( 'next sync is due', $this->render( array( $this->page, 'render' ) ) );
+	}
+
+	public function test_the_screen_offers_a_way_to_sync_on_demand(): void {
+		$this->become_administrator();
+
+		$html = $this->render( array( $this->page, 'render' ) );
+
+		$this->assertStringContainsString( 'Sync now', $html );
+		$this->assertStringContainsString( SettingsPage::SYNC_ACTION, $html );
+		$this->assertMatchesRegularExpression( '/name=._wpnonce. value=.[a-f0-9]+./', $html );
+	}
+
+	public function test_someone_without_permission_cannot_sync(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
+		$_REQUEST['_wpnonce'] = wp_create_nonce( SettingsPage::SYNC_ACTION );
+
+		$this->expectException( WPDieException::class );
+
+		$this->page->run_sync_now();
+	}
+
+	/**
+	 * Without this, a page anywhere on the internet could make a logged-in
+	 * administrator's browser fire syncs at Veezi.
+	 */
+	public function test_a_sync_without_a_valid_nonce_is_rejected(): void {
+		$this->become_administrator();
+		$_REQUEST['_wpnonce'] = 'not-the-nonce';
+
+		$this->expectException( WPDieException::class );
+
+		$this->page->run_sync_now();
+	}
+
+	public function test_an_administrator_can_sync_on_demand(): void {
+		$this->arrange_administrator_ready_to_sync();
+		$this->veezi_is_showing();
+
+		$result = $this->page->run_sync_now();
+
+		$this->assertNotNull( $result );
+		$this->assertTrue( $result->is_success() );
+		$this->assertCount( 1, $this->records( ContentModel::FILM ) );
+	}
+
+	/**
+	 * The whole point of the button: a change made at the box office a minute
+	 * ago is on the site a minute later. An answer cached from the last run is
+	 * exactly the thing being re-asked.
+	 */
+	public function test_syncing_now_sees_a_change_made_moments_ago(): void {
+		$this->arrange_administrator_ready_to_sync();
+		$this->veezi_is_showing( 1 );
+		$this->sync_at( '2026-08-01 00:00:00' );
+
+		$this->veezi_is_showing( 2 );
+		$this->page->run_sync_now();
+
+		$this->assertCount( 2, $this->records( ContentModel::SESSION ) );
+	}
+
+	public function test_a_sync_that_worked_says_so_on_the_page_after_it(): void {
+		$this->arrange_administrator_ready_to_sync();
+		$this->veezi_is_showing();
+
+		$this->page->run_sync_now();
+		$html = $this->render( fn() => $this->page->render_notice() );
+
+		$this->assertStringContainsString( 'notice-success', $html );
+		$this->assertStringContainsString( 'Regal Picture Palace', $html );
+	}
+
+	/**
+	 * Pressing the button while the hourly run is mid-flight is not an error,
+	 * and reporting one would send somebody looking for a problem that is not
+	 * there.
+	 */
+	public function test_an_administrator_is_told_when_a_sync_is_already_going(): void {
+		$this->arrange_administrator_ready_to_sync();
+		$this->veezi_is_showing();
+		SyncLock::acquire();
+
+		$this->assertNull( $this->page->run_sync_now() );
+
+		$html = $this->render( fn() => $this->page->render_notice() );
+
+		$this->assertStringContainsString( 'already running', $html );
+		$this->assertStringNotContainsString( 'notice-error', $html );
+	}
+
+	/**
+	 * A failed sync has already raised its own notice through the sync log, and
+	 * two red boxes saying one thing reads as two problems.
+	 */
+	public function test_a_failed_sync_is_not_reported_twice_on_one_screen(): void {
+		$this->arrange_administrator_ready_to_sync();
+		$this->veezi->will_fail( '/v1/site' );
+
+		$this->page->run_sync_now();
+
+		$this->assertSame( '', trim( $this->render( fn() => $this->page->render_notice() ) ) );
+		$this->assertNotNull( SyncLog::unresolved_failure(), 'The failure still has to be recorded somewhere.' );
 	}
 }

@@ -15,7 +15,7 @@ use Elementor\Plugin as Elementor;
 use Elementor\Widget_Base;
 use Veezi\WordPress\ContentModel;
 use Veezi\WordPress\Presentation\Screening;
-use Veezi\WordPress\Sync;
+use Veezi\WordPress\SyncLog;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -411,7 +411,7 @@ final class SessionTimes extends Widget_Base {
 	 * @param int $film The record being rendered, which may not be a film at all.
 	 */
 	private function reason_for_emptiness( int $film ): string {
-		if ( ! Sync::has_ever_completed() ) {
+		if ( ! SyncLog::has_ever_succeeded() ) {
 			return __( 'No programme has synced yet. Check the connection under Settings → Veezi.', 'veezi-wordpress-plugin' );
 		}
 

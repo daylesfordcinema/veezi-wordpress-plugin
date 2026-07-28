@@ -28,12 +28,44 @@ links out to the cinema's own booking pages and never handles a transaction.
 = What is here so far =
 
 This is an early release. It connects to Veezi, confirms which cinema the site
-is talking to, and syncs the programme: one record per film and one per
+is talking to, and syncs the programme hourly: one record per film and one per
 screening, with showtimes read in the cinema's own timezone, booking links, and
 posters copied into the media library. It also gives Elementor the fields and
 the one widget a film listing needs. The single film page and the chronological
-calendar are the next piece of work, and there is no scheduled or on-demand
-trigger yet.
+calendar are the next piece of work.
+
+= Keeping the programme up to date =
+
+A sync runs hourly on WordPress's cron, so nobody has to remember anything, and
+a host that drives that queue externally refreshes a site nobody has visited.
+Settings → Veezi shows when the programme last synced and what that run did,
+when the next one is due, and has a "Sync now" button for the last-minute
+change. Only one sync runs at a time; anything that arrives while one is going
+stands aside.
+
+To sync more or less often:
+
+`add_filter( 'veezi_sync_recurrence', fn() => 'twicedaily' );`
+
+= If Veezi is unreachable =
+
+An outage at the ticketing provider does not blank the website. Every feed is
+fetched before anything is written, so a failed or partial fetch stops the run
+and leaves the last good programme published, ordered and complete. A visitor
+sees nothing amiss; the failure is written to the server's error log and raised
+as an admin notice, so the cinema finds out before a customer does. The notice
+goes away by itself on the next run that works.
+
+Responses are cached for five minutes, since Veezi publishes no rate limits.
+Failures are never cached, and "Sync now" and "Test connection" both ignore the
+cache.
+
+= Deactivating and deleting =
+
+Deactivating takes the scheduled sync off the queue and leaves everything else
+alone. Deleting removes what the plugin configured itself with — the access
+token above all — and leaves the films, sessions and posters it published, since
+those have public addresses and sit in the media library like any other content.
 
 = Building a film card =
 

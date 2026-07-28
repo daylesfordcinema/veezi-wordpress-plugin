@@ -14,10 +14,12 @@ use JsonSerializable;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * What "Test connection" found, in a form that survives a redirect.
+ * What "Test connection" found.
  *
- * The check runs on a POST and its answer is shown on the GET that follows, so
- * the result spends a moment in a transient. Hence the array conversions.
+ * Two things read it. The screen shows the message, and a sync takes the
+ * cinema's timezone from it — which is why the check is a sync's first step
+ * rather than an admin convenience: it settles whose programme is about to be
+ * read, and which clock its showtimes are on.
  */
 final class ConnectionResult implements JsonSerializable {
 
@@ -77,20 +79,6 @@ final class ConnectionResult implements JsonSerializable {
 			'timezone'  => $this->timezone_identifier,
 			'code'      => $this->code,
 			'message'   => $this->message,
-		);
-	}
-
-	/**
-	 * @param array<string,mixed> $data As produced by to_array(), read back
-	 *                                  out of the transient it waited in.
-	 */
-	public static function from_array( array $data ): self {
-		return new self(
-			! empty( $data['success'] ),
-			isset( $data['site_name'] ) ? (string) $data['site_name'] : '',
-			isset( $data['timezone'] ) ? (string) $data['timezone'] : '',
-			isset( $data['code'] ) ? (string) $data['code'] : '',
-			isset( $data['message'] ) ? (string) $data['message'] : ''
 		);
 	}
 

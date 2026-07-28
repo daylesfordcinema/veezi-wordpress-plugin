@@ -47,4 +47,30 @@ final class SyncResult {
 	public function message(): string {
 		return $this->message;
 	}
+
+	/**
+	 * @return array<string,mixed>
+	 */
+	public function to_array(): array {
+		return array(
+			'success' => $this->success,
+			'at'      => $this->started_at->getTimestamp(),
+			'message' => $this->message,
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $data As produced by to_array() and read back
+	 *                                  out of wherever it was written down.
+	 */
+	public static function from_array( array $data ): self {
+		// From the epoch second, so a result written down under one site
+		// timezone reads the same after somebody changes it.
+		$started_at = new DateTimeImmutable( '@' . (int) ( $data['at'] ?? 0 ) );
+		$message    = isset( $data['message'] ) ? (string) $data['message'] : '';
+
+		return empty( $data['success'] )
+			? self::failed( $started_at, $message )
+			: self::completed( $started_at, $message );
+	}
 }

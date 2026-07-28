@@ -33,26 +33,56 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Sync {
 
-	/**
-	 * When a run last got all the way through, as an epoch second.
-	 *
-	 * Written only after every feed has arrived and been stored, so its absence
-	 * means precisely one thing: this site has never had a programme. That is
-	 * not the same question as "are there any screenings" — a cinema between
-	 * seasons has none and is working perfectly — and telling the two apart is
-	 * what stops a widget accusing a correctly configured site of being broken.
-	 */
-	public const COMPLETED_AT = 'veezi_last_sync';
-
 	public function __construct( private readonly Client $client ) {}
 
-	public static function has_ever_completed(): bool {
-		return '' !== (string) get_option( self::COMPLETED_AT, '' );
+	/**
+	 * Sync, unless one is already going.
+	 *
+	 * The only way in, so that "two syncs cannot run concurrently" is something
+	 * the code enforces rather than something every caller has to remember. The
+	 * doors are the hourly event and the administrator's own button, and both
+	 * arrive here.
+	 *
+	 * Null when a run is already in progress — which is not a failure and must
+	 * not be recorded as one. Nothing has gone wrong: the work this run was
+	 * going to do is being done by the run already doing it.
+	 *
+	 * @param DateTimeImmutable|null $now The moment to run against. Defaults to
+	 *                                    the real clock.
+	 */
+	public function attempt( ?DateTimeImmutable $now = null ): ?SyncResult {
+		$lock = SyncLock::acquire();
+
+		if ( null === $lock ) {
+			return null;
+		}
+
+		try {
+			return $this->run( $now ?? self::now() );
+		} finally {
+			$lock->release();
+		}
 	}
 
-	public function run( ?DateTimeImmutable $now = null ): SyncResult {
-		$now ??= self::now();
+	/**
+	 * Run, and write down what happened.
+	 *
+	 * Recorded here rather than at the door, so that every run is recorded
+	 * whichever door it came in by. "Can I trust what is on the site" is a
+	 * question about the programme, and its answer must not depend on how the
+	 * programme got there.
+	 *
+	 * @param DateTimeImmutable $now The moment this run is deciding dates by.
+	 */
+	private function run( DateTimeImmutable $now ): SyncResult {
+		$result = $this->fetch_and_publish( $now );
 
+		SyncLog::record( $result );
+
+		return $result;
+	}
+
+	private function fetch_and_publish( DateTimeImmutable $now ): SyncResult {
 		$connection = $this->client->check_connection();
 
 		if ( ! $connection->is_success() ) {
@@ -70,8 +100,6 @@ final class Sync {
 		$programme = Programme::assemble( $feeds['sessions'], $feeds['web_sessions'], $feeds['films'], $zone, $now );
 
 		( new Repository( $zone ) )->store( $programme );
-
-		update_option( self::COMPLETED_AT, (string) $now->getTimestamp() );
 
 		return SyncResult::completed(
 			$now,

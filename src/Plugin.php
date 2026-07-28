@@ -67,9 +67,22 @@ final class Plugin {
 		return new Sync( $this->client() );
 	}
 
+	/**
+	 * What the host's cron reaches when the event falls due.
+	 *
+	 * Guarded rather than plain, because a sync slow enough to still be going
+	 * when the next firing arrives would otherwise have two of itself writing
+	 * the same records.
+	 */
+	public function sync_on_schedule(): void {
+		$this->sync()->attempt();
+	}
+
 	private function register(): void {
 		add_action( 'init', array( ContentModel::class, 'register' ) );
 		add_action( 'init', array( ContentModel::class, 'flush_rewrites_when_stale' ), 20 );
+		add_action( 'init', array( Schedule::class, 'ensure' ) );
+		add_action( Schedule::HOOK, array( $this, 'sync_on_schedule' ) );
 		add_action( 'admin_init', array( $this->settings, 'register' ) );
 
 		// Unconditional, and safe on a site with no page builder: these are two
@@ -79,31 +92,39 @@ final class Plugin {
 
 		if ( is_admin() ) {
 			( new Admin\SettingsPage( $this ) )->register();
+			( new Admin\Notices() )->register();
 		}
 	}
 
 	/**
 	 * Runs on activation.
 	 *
-	 * Only the rewrite rules need touching. Film pages live at addresses the
-	 * post type registration invents, and WordPress caches those rules, so
-	 * without a flush here the first film link a visitor follows is a 404. No
-	 * options are written: defaults belong in the code that reads them, where
-	 * they also apply to a site that was activated before they existed.
+	 * The rewrite rules need touching: film pages live at addresses the post
+	 * type registration invents, and WordPress caches those rules, so without a
+	 * flush here the first film link a visitor follows is a 404. And the sync
+	 * goes on the schedule, so that a site which has just been connected fills
+	 * itself rather than waiting to be asked.
+	 *
+	 * No options are written: defaults belong in the code that reads them,
+	 * where they also apply to a site that was activated before they existed.
 	 */
 	public static function activate(): void {
 		ContentModel::register();
 		ContentModel::flush_rewrites();
+		Schedule::ensure();
 	}
 
 	/**
 	 * Leaves the programme in place — a deactivated plugin should be a
-	 * reversible mistake — and only withdraws the routes that would now 404.
+	 * reversible mistake — and withdraws the two things that would otherwise
+	 * carry on without it: the routes, which would now 404, and the scheduled
+	 * sync, which would fire at a hook nothing answers.
 	 *
-	 * The stamp goes too, so that whatever happens next, the routes are
+	 * The rewrite stamp goes too, so that whatever happens next, the routes are
 	 * rebuilt rather than assumed.
 	 */
 	public static function deactivate(): void {
+		Schedule::clear();
 		delete_option( ContentModel::REWRITES_VERSION );
 		flush_rewrite_rules( false );
 	}

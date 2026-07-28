@@ -11,7 +11,11 @@ namespace Veezi\WordPress\Admin;
 
 use Veezi\WordPress\ConnectionResult;
 use Veezi\WordPress\Plugin;
+use Veezi\WordPress\ResponseCache;
+use Veezi\WordPress\Schedule;
 use Veezi\WordPress\Settings;
+use Veezi\WordPress\SyncLog;
+use Veezi\WordPress\SyncResult;
 use Veezi\WordPress\Token;
 
 defined( 'ABSPATH' ) || exit;
@@ -31,14 +35,15 @@ final class SettingsPage {
 	public const MENU_SLUG    = 'veezi';
 	public const CAPABILITY   = 'manage_options';
 	public const CHECK_ACTION = 'veezi_check_connection';
+	public const SYNC_ACTION  = 'veezi_sync_now';
 
 	/** The starter card, relative to the plugin's main file. */
 	public const FILM_CARD = 'templates/film-card.json';
 
 	/**
-	 * The answer to a connection check waits here for the redirect that
-	 * follows it. Keyed by user, so two administrators working at once each
-	 * see their own result rather than whichever landed last.
+	 * What the button just pressed did waits here for the redirect that follows
+	 * it. Keyed by user, so two administrators working at once each see their
+	 * own result rather than whichever landed last.
 	 */
 	private const NOTICE_TRANSIENT_PREFIX = 'veezi_connection_notice_';
 
@@ -51,6 +56,7 @@ final class SettingsPage {
 		add_action( 'admin_menu', array( $this, 'add_page' ) );
 		add_action( 'admin_init', array( $this, 'add_fields' ) );
 		add_action( 'admin_post_' . self::CHECK_ACTION, array( $this, 'handle_connection_check' ) );
+		add_action( 'admin_post_' . self::SYNC_ACTION, array( $this, 'handle_sync_now' ) );
 
 		// Saving a new token schedules a check of it. WordPress writes a brand
 		// new option through add_option(), so both hooks are needed.
@@ -194,7 +200,7 @@ final class SettingsPage {
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Veezi', 'veezi-wordpress-plugin' ) . '</h1>';
 
-		$this->render_connection_notice();
+		$this->render_notice();
 
 		echo '<form action="options.php" method="post">';
 		settings_fields( Settings::GROUP );
@@ -206,20 +212,111 @@ final class SettingsPage {
 		echo '<h2>' . esc_html__( 'Connection', 'veezi-wordpress-plugin' ) . '</h2>';
 		echo '<p class="description">' . esc_html__( 'Saving a new token checks it straight away. Use this to check the saved token again at any time — after revoking one at Veezi, say, or to tell an empty programme from a broken connection.', 'veezi-wordpress-plugin' ) . '</p>';
 
-		printf( '<form action="%s" method="post">', esc_url( admin_url( 'admin-post.php' ) ) );
-		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( self::CHECK_ACTION ) );
-		wp_nonce_field( self::CHECK_ACTION );
-		// Named, because submit_button() derives the id from the name and
-		// defaults both to "submit" — which the save button above already
-		// uses. Two elements sharing an id is invalid HTML, and it makes the
-		// button ambiguous to anything selecting by id, this page's own tests
-		// included.
-		submit_button( __( 'Test connection', 'veezi-wordpress-plugin' ), 'secondary', 'veezi-check-connection', false );
-		echo '</form>';
+		$this->render_action(
+			self::CHECK_ACTION,
+			__( 'Test connection', 'veezi-wordpress-plugin' ),
+			'veezi-check-connection'
+		);
 
+		$this->render_programme();
 		$this->render_starter_templates();
 
 		echo '</div>';
+	}
+
+	/**
+	 * Whether the programme is keeping itself up to date, and a way to hurry it.
+	 *
+	 * The last run that *worked* rather than the last run, because that is what
+	 * the site is currently showing: through an outage the programme on the
+	 * page is exactly what that run put there, and saying otherwise would send
+	 * an administrator looking for content that is not missing. A run that
+	 * failed raises its own notice.
+	 */
+	private function render_programme(): void {
+		echo '<hr />';
+		echo '<h2>' . esc_html__( 'Programme', 'veezi-wordpress-plugin' ) . '</h2>';
+
+		$last = SyncLog::last_success();
+
+		echo '<p>';
+		if ( null === $last ) {
+			esc_html_e( 'The programme has never synced.', 'veezi-wordpress-plugin' );
+		} else {
+			printf(
+				/* translators: 1: a date and time, 2: what that run did, e.g. "Synced 9 films and 32 sessions from the Regal." */
+				esc_html__( 'Last synced %1$s. %2$s', 'veezi-wordpress-plugin' ),
+				esc_html( self::in_words( $last->started_at()->getTimestamp() ) ),
+				esc_html( $last->message() )
+			);
+		}
+		echo '</p>';
+
+		echo '<p class="description">' . esc_html( self::when_the_next_one_is_due() ) . '</p>';
+
+		$this->render_action( self::SYNC_ACTION, __( 'Sync now', 'veezi-wordpress-plugin' ), 'veezi-sync-now' );
+	}
+
+	/**
+	 * A one-button form posting to `admin-post.php`, with its nonce.
+	 *
+	 * Separate from the settings form above, which goes to WordPress's own
+	 * `options.php`: these two buttons change nothing that is saved, and an
+	 * administrator who presses one has not saved anything.
+	 *
+	 * @param string $action    The `admin_post_` name, and the nonce action.
+	 * @param string $label     What the button says.
+	 * @param string $button_id Named, because submit_button() derives the id
+	 *                          from the name and defaults both to "submit" —
+	 *                          which the save form already uses. Two elements
+	 *                          sharing an id is invalid HTML, and makes the
+	 *                          button ambiguous to anything selecting by id,
+	 *                          this page's own tests included.
+	 */
+	private function render_action( string $action, string $label, string $button_id ): void {
+		printf( '<form action="%s" method="post">', esc_url( admin_url( 'admin-post.php' ) ) );
+		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( $action ) );
+		wp_nonce_field( $action );
+		submit_button( $label, 'secondary', $button_id, false );
+		echo '</form>';
+	}
+
+	/**
+	 * A time in the site's own terms — its timezone and its chosen format.
+	 *
+	 * The site's rather than the cinema's, deliberately: this is a fact about
+	 * the website, read by whoever administers it, and it belongs on the same
+	 * clock as every other date they see in here. Showtimes are the other way
+	 * round, and are converted in the cinema's zone wherever they are printed.
+	 *
+	 * @param int $timestamp An epoch second.
+	 */
+	private static function in_words( int $timestamp ): string {
+		return (string) wp_date(
+			trim( (string) get_option( 'date_format' ) . ' ' . (string) get_option( 'time_format' ) ),
+			$timestamp
+		);
+	}
+
+	private static function when_the_next_one_is_due(): string {
+		$next = Schedule::next_run();
+
+		if ( null === $next ) {
+			return __( 'No sync is scheduled. Deactivating and reactivating the plugin puts it back.', 'veezi-wordpress-plugin' );
+		}
+
+		// A due time in the past is the ordinary state of an externally driven
+		// cron between the moment an event falls due and the moment the host
+		// gets to it, so it is not a fault to report.
+		if ( $next <= time() ) {
+			return __( 'The next sync is due now.', 'veezi-wordpress-plugin' );
+		}
+
+		return sprintf(
+			/* translators: %s: a rough length of time, e.g. "42 mins". */
+			__( 'The next sync is due in %s.', 'veezi-wordpress-plugin' ),
+			human_time_diff( time(), $next )
+		);
 	}
 
 	/**
@@ -248,7 +345,10 @@ final class SettingsPage {
 		);
 	}
 
-	public function render_connection_notice(): void {
+	/**
+	 * What the last button press did, shown once on the page after it.
+	 */
+	public function render_notice(): void {
 		$this->run_scheduled_check();
 
 		$key    = $this->notice_key();
@@ -260,24 +360,74 @@ final class SettingsPage {
 
 		delete_transient( $key );
 
-		$result = ConnectionResult::from_array( $stored );
-
-		printf(
-			'<div class="notice %s is-dismissible"><p>%s</p></div>',
-			$result->is_success() ? 'notice-success' : 'notice-error',
-			esc_html( $result->message() )
-		);
+		Message::from_array( $stored )?->render();
 	}
 
 	/**
-	 * The `admin_post_` handler: check, remember, and send the browser back to
-	 * the screen so a refresh does not re-run it.
+	 * Put something aside to say on the page after the redirect.
+	 *
+	 * @param Message $message Already scrubbed of the token by whoever built it.
+	 */
+	private function remember( Message $message ): void {
+		set_transient( $this->notice_key(), $message->to_array(), MINUTE_IN_SECONDS );
+	}
+
+	/**
+	 * The `admin_post_` handlers: do the thing, then send the browser back to
+	 * the screen so that a refresh does not do it again.
 	 */
 	public function handle_connection_check(): void {
 		$this->run_connection_check();
 
+		$this->back_to_the_screen();
+	}
+
+	public function handle_sync_now(): void {
+		$this->run_sync_now();
+
+		$this->back_to_the_screen();
+	}
+
+	private function back_to_the_screen(): void {
 		wp_safe_redirect( $this->url() );
 		exit;
+	}
+
+	/**
+	 * Sync because somebody asked, rather than because the hour came round.
+	 *
+	 * Null when a sync is already running, which is not a failure: the work
+	 * this run would have done is being done. Separated from the redirect above
+	 * so that the guards, which are the part worth getting right, can be
+	 * exercised without a browser.
+	 */
+	public function run_sync_now(): ?SyncResult {
+		$this->authorise(
+			self::SYNC_ACTION,
+			__( 'You are not allowed to sync the Veezi programme.', 'veezi-wordpress-plugin' )
+		);
+
+		// This button exists for the last-minute programme change, so "now"
+		// has to mean now: an answer cached minutes ago is precisely the thing
+		// being re-asked.
+		ResponseCache::forget();
+
+		$result = $this->plugin->sync()->attempt();
+
+		if ( null === $result ) {
+			$this->remember( Message::info( __( 'A sync is already running. Give it a moment and reload.', 'veezi-wordpress-plugin' ) ) );
+
+			return null;
+		}
+
+		// Only a success is said here. A failure has already raised its own
+		// notice through the sync log, and one problem stated twice on one
+		// screen reads as two.
+		if ( $result->is_success() ) {
+			$this->remember( Message::success( $result->message() ) );
+		}
+
+		return $result;
 	}
 
 	/**
@@ -285,21 +435,12 @@ final class SettingsPage {
 	 * worth getting right, can be exercised without a browser.
 	 */
 	public function run_connection_check(): ConnectionResult {
-		if ( ! current_user_can( self::CAPABILITY ) ) {
-			wp_die(
-				esc_html__( 'You are not allowed to test the Veezi connection.', 'veezi-wordpress-plugin' ),
-				'',
-				array( 'response' => 403 )
-			);
-		}
+		$this->authorise(
+			self::CHECK_ACTION,
+			__( 'You are not allowed to test the Veezi connection.', 'veezi-wordpress-plugin' )
+		);
 
-		check_admin_referer( self::CHECK_ACTION );
-
-		$result = $this->plugin->client()->check_connection();
-
-		set_transient( $this->notice_key(), $result->to_array(), MINUTE_IN_SECONDS );
-
-		return $result;
+		return $this->check_the_connection();
 	}
 
 	/**
@@ -319,11 +460,38 @@ final class SettingsPage {
 
 		delete_transient( $key );
 
-		set_transient(
-			$this->notice_key(),
-			$this->plugin->client()->check_connection()->to_array(),
-			MINUTE_IN_SECONDS
+		$this->check_the_connection();
+	}
+
+	private function check_the_connection(): ConnectionResult {
+		$result = $this->plugin->client()->check_connection();
+
+		$this->remember(
+			$result->is_success()
+				? Message::success( $result->message() )
+				: Message::error( $result->message() )
 		);
+
+		return $result;
+	}
+
+	/**
+	 * The two guards every action on this screen carries.
+	 *
+	 * The code is public, so anyone can read exactly which request would reach
+	 * a handler — which is why neither of these can be informal, and why they
+	 * are in one place rather than repeated per action.
+	 *
+	 * @param string $action  The nonce action, which is also the `admin_post_`
+	 *                        name the request arrived under.
+	 * @param string $refusal What to tell somebody who may not do this.
+	 */
+	private function authorise( string $action, string $refusal ): void {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_die( esc_html( $refusal ), '', array( 'response' => 403 ) );
+		}
+
+		check_admin_referer( $action );
 	}
 
 	private function notice_key(): string {
