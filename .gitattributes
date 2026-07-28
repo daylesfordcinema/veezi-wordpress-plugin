@@ -6,15 +6,8 @@
 # command — the list then lives next to the files it names, and GitHub's own
 # generated source archives honour it too.
 #
-# Build one the way a release does:
-#
-#   git archive --format=zip --prefix=veezi-wordpress-plugin/ \
-#     -o veezi-wordpress-plugin.zip HEAD
-#
-# The prefix is not decoration. WordPress installs an archive under whatever its
-# single top-level directory is called, and that name has to be the plugin slug
-# — which is why a repository's generated source archive, named for the tag,
-# installs the plugin under the wrong directory and breaks its own updates.
+# How an archive is built, and why its single top-level directory has to be the
+# plugin slug, is the README's "Releasing" section.
 
 /.github            export-ignore
 /.gitattributes     export-ignore

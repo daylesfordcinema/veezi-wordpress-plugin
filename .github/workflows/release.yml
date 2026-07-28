@@ -43,6 +43,8 @@ jobs:
       ## test cannot make — there is no tag at test time.
       - name: Check the tag against the version the plugin declares
         run: |
+          set -euo pipefail
+
           declared="$(awk '/^ \* Version:/ { print $3; exit }' "$SLUG.php")"
 
           if [ "v$declared" != "$GITHUB_REF_NAME" ]; then
@@ -63,46 +65,53 @@ jobs:
           git archive --format=zip --prefix="$SLUG/" \
             -o "$SLUG-$VERSION.zip" HEAD
 
-      ## An archive is only installable if it has exactly one top-level
-      ## directory and that directory is the slug: WordPress names the
-      ## installed plugin after it. Checked both ways round — that what must be
-      ## there is, and that what must not be there is not — because an
-      ## export-ignore that stops matching fails silently and ships the
-      ## development tree to a live site.
+      ## Two properties, and between them there is nothing left to assume.
+      ##
+      ## One top-level directory, named for the slug, because WordPress names
+      ## the installed plugin after whatever that directory is called.
+      ##
+      ## And inside it, exactly this list and nothing else. Deliberately a list
+      ## of what ships rather than of what does not: an exclusion list can only
+      ## repeat what .gitattributes already says, so it would agree with the
+      ## archive no matter how wrong both were. This is the plugin's own
+      ## surface, stated independently — it does not move when a file is added
+      ## under src/, and it does not stay quiet when somebody adds a directory
+      ## of development scaffold and forgets to exclude it. Which is the way
+      ## this goes wrong: silently, and only visible on a live site.
       - name: Check what is in it
         run: |
-          contents="$(unzip -Z1 "$SLUG-$VERSION.zip")"
-          printf '%s\n' "$contents"
+          set -euo pipefail
 
-          top="$(printf '%s\n' "$contents" | cut -d/ -f1 | sort -u)"
+          archive="$SLUG-$VERSION.zip"
+          unzip -Z1 "$archive"
+
+          top="$(unzip -Z1 "$archive" | cut -d/ -f1 | sort -u)"
           if [ "$top" != "$SLUG" ]; then
             echo "Expected one top-level directory named $SLUG, found: $top" >&2
             exit 1
           fi
 
-          if ! printf '%s\n' "$contents" | grep -qx "$SLUG/$SLUG.php"; then
-            echo "The archive has no $SLUG/$SLUG.php for WordPress to read." >&2
+          ships="$(printf '%s\n' \
+            LICENSE README.md assets readme.txt src templates uninstall.php \
+            "$SLUG.php" | sort)"
+
+          found="$(unzip -Z1 "$archive" | sed "s|^$SLUG/||" \
+            | cut -d/ -f1 | sed '/^$/d' | sort -u)"
+
+          if ! diff -u <(printf '%s\n' "$ships") <(printf '%s\n' "$found"); then
+            echo "That is not the plugin's top level. Check .gitattributes." >&2
             exit 1
           fi
 
-          for unwanted in \
-            .github .gitattributes .gitignore .phpcs.xml.dist \
-            bin composer.json composer.lock docs phpunit.xml.dist tests vendor
-          do
-            if printf '%s\n' "$contents" | grep -q "^$SLUG/$unwanted"; then
-              echo "$unwanted is in the archive; check .gitattributes." >&2
-              exit 1
-            fi
-          done
-
       ## Create the release if the tag arrived on its own, or attach to one
       ## already published from the web interface. Either route ends with the
-      ## same file on the same tag, which is what the deploy and the manual
-      ## uploader both take.
+      ## same file on the same tag.
       - name: Attach it to the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
           archive="$SLUG-$VERSION.zip"
 
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then

@@ -469,10 +469,11 @@ programming into a public repository.
 ### What CI runs
 
 Pushes to `main` and pull requests run the coding-standards check and the whole
-suite, on PHP 8.2, WordPress 7.0.2 and MariaDB 10.11 — the versions the plugin
-is deployed onto. It does that by running `bin/install-wp-tests.sh` above rather
-than by describing the environment a second time, so the pinned versions have
-one home and a runner cannot drift from a developer's machine.
+suite. PHP and MariaDB come from the runner, pinned in the workflow to match
+what the plugin is deployed onto; WordPress and Elementor come from
+`bin/install-wp-tests.sh` above, which CI runs exactly as a developer does — so
+those two versions are written down in one place and a pipeline cannot drift
+from a checkout.
 
 The workflow declares read-only permissions and reads no secret, and it runs on
 `pull_request` rather than `pull_request_target`, so a pull request from a fork
