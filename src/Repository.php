@@ -127,6 +127,7 @@ final class Repository {
 				ContentModel::FILM_DISTRIBUTOR    => $film->distributor,
 				ContentModel::FILM_RELEASED       => $film->released_on,
 				ContentModel::FILM_TRAILER        => $film->trailer_url,
+				ContentModel::FILM_PEOPLE         => Person::encode( $film->people ),
 				ContentModel::FILM_NEXT_SCREENING => null === $next_screening
 					? ''
 					: (string) $next_screening->getTimestamp(),
@@ -362,12 +363,18 @@ final class Repository {
 	 * regardless, and comparing an integer against what comes back out never
 	 * matches — so passing integers would rewrite every value on every sync.
 	 *
+	 * Slashed on the way in because the metadata API unslashes on the way
+	 * through, so a value handed over as it stands loses every backslash in it.
+	 * That is invisible for most of these and fatal for the credits, which are
+	 * encoded: `Penélope` arrives back as `Penu00e9lope`, and Penélope Cruz
+	 * has lost a letter on every page that names her.
+	 *
 	 * @param int                  $post_id Which record.
 	 * @param array<string,string> $meta    Keys and their values.
 	 */
 	private function write_meta( int $post_id, array $meta ): void {
 		foreach ( $meta as $key => $value ) {
-			update_post_meta( $post_id, $key, $value );
+			update_post_meta( $post_id, $key, wp_slash( $value ) );
 		}
 	}
 

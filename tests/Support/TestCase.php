@@ -464,12 +464,7 @@ abstract class TestCase extends WP_UnitTestCase {
 	}
 
 	/**
-	 * What one of the plugin's widgets puts on the page.
-	 *
-	 * Built through Elementor's own element manager, which is the same call the
-	 * front end makes for every widget on a page — so this fails if the widget
-	 * was never registered, rather than quietly testing a class nobody can
-	 * reach from the builder.
+	 * What a widget puts on the page, with one record being looped over.
 	 *
 	 * @param string              $widget   The name a template stores, e.g. `veezi-session-times`.
 	 * @param int                 $post_id  The record being looped over.
@@ -478,6 +473,51 @@ abstract class TestCase extends WP_UnitTestCase {
 	protected function rendered_widget( string $widget, int $post_id, array $settings = array() ): string {
 		$this->looping_over( $post_id );
 
+		return $this->rendered_widget_here( $widget, $settings );
+	}
+
+	/**
+	 * The same, against whatever record the page has already set up.
+	 *
+	 * @param string              $widget   The name a template stores, e.g. `video`.
+	 * @param array<string,mixed> $settings The widget's controls, as the panel would set them.
+	 */
+	protected function rendered_widget_here( string $widget, array $settings = array() ): string {
+		ob_start();
+		$this->widget( $widget, $settings )->render_content();
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * A whole widget, wrapper and all, rather than only what it renders inside
+	 * one.
+	 *
+	 * The wrapper is where Elementor puts the settings its own scripts read, so
+	 * it is the only place to see what a widget that mounts itself in the
+	 * browser was pointed at.
+	 *
+	 * @param string              $widget   The name a template stores, e.g. `video`.
+	 * @param array<string,mixed> $settings The widget's controls, as the panel would set them.
+	 */
+	protected function printed_widget_here( string $widget, array $settings = array() ): string {
+		ob_start();
+		$this->widget( $widget, $settings )->print_element();
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Built through Elementor's own element manager, which is the same call the
+	 * front end makes for every widget on a page — so this fails if the widget
+	 * was never registered, rather than quietly testing a class nobody can
+	 * reach from the builder. Which is also why it is used for Elementor's own
+	 * widgets here as well as the plugin's.
+	 *
+	 * @param string              $widget   The name a template stores, e.g. `video`.
+	 * @param array<string,mixed> $settings The widget's controls, as the panel would set them.
+	 */
+	private function widget( string $widget, array $settings ): \Elementor\Element_Base {
 		$element = \Elementor\Plugin::$instance->elements_manager->create_element_instance(
 			array(
 				'id'         => 'a1b2c3d',
@@ -489,10 +529,7 @@ abstract class TestCase extends WP_UnitTestCase {
 
 		$this->assertNotNull( $element, "Elementor has no {$widget} widget registered." );
 
-		ob_start();
-		$element->render_content();
-
-		return (string) ob_get_clean();
+		return $element;
 	}
 
 	/**

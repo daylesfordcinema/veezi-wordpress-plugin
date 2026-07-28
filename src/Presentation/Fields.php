@@ -88,6 +88,17 @@ final class Fields {
 	}
 
 	/**
+	 * Who worked on the film, and what they did.
+	 *
+	 * @param int    $post_id A film record.
+	 * @param string $role    One of {@see \Veezi\WordPress\Person::ROLES}, or an
+	 *                        empty string for everybody.
+	 */
+	public static function cast_and_crew( int $post_id, string $role = '' ): string {
+		return Credits::for_film( $post_id )->in_words( $role );
+	}
+
+	/**
 	 * @param int $post_id A film record.
 	 */
 	public static function trailer_url( int $post_id ): string {

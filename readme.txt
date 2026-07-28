@@ -31,8 +31,9 @@ This is an early release. It connects to Veezi, confirms which cinema the site
 is talking to, and syncs the programme hourly: one record per film and one per
 screening, with showtimes read in the cinema's own timezone, booking links, and
 posters copied into the media library. It also gives Elementor the fields and
-the one widget a film listing needs. The single film page and the chronological
-calendar are the next piece of work.
+the one widget a film listing needs, and every film has a page of its own with
+its credits, screenings and trailer. The chronological calendar and a coming-soon
+listing are the next pieces of work.
 
 = Keeping the programme up to date =
 
@@ -69,11 +70,15 @@ those have public addresses and sit in the media library like any other content.
 
 = Building a film card =
 
-Seven fields appear in Elementor's dynamic-data picker under "Veezi Programme":
-poster, runtime, classification, genre, trailer link, session time and booking
-link. Bind them to ordinary widgets the way you would bind any custom field —
-they read whichever record is being rendered, so the same card works inside a
-loop and on a film's own page with nothing to configure.
+Eight fields appear in Elementor's dynamic-data picker under "Veezi Programme":
+poster, runtime, classification, genre, cast and crew, trailer link, session
+time and booking link. Bind them to ordinary widgets the way you would bind any
+custom field — they read whichever record is being rendered, so the same card
+works inside a loop and on a film's own page with nothing to configure.
+
+Cast and Crew carries a Role control: left alone it is the whole credit list
+with each person's role beside their name, and set to Director, Screenwriter,
+Producer or Actor it is those names alone, in the order Veezi lists them.
 
 A card also needs every time that film screens, which is a list inside a list:
 loop widgets cannot nest and a dynamic tag can offer only one value. So the
@@ -85,6 +90,29 @@ marked, with no link.
 An importable starter card ships with the plugin — poster, title, details,
 session times and a booking button, already bound. There is a link to it on
 Settings → Veezi.
+
+= The film page =
+
+Every film has a page of its own at /film/its-name/. The address is settled the
+first time the film is published and never recomputed, so a film renamed
+upstream does not break links already shared, and the page keeps resolving after
+the last screening has passed.
+
+A second starter template ships for that page: poster, title, details, directed
+by, written by, starring, every remaining screening from the same Session Times
+widget, the synopsis and the trailer. Place it in a theme-builder Single
+template for Films — that part is an Elementor Pro feature; without it the theme
+renders the title and synopsis on its own.
+
+It carries no booking button, on purpose. Every film page eventually becomes an
+archived one, and a booking link with nothing to book renders as a button that
+goes nowhere. The session times are the booking surface: each time in the list
+links to the seats for that screening.
+
+Veezi sends trailers as YouTube watch links, which no player can be pointed at
+directly. The template binds one to Elementor's video widget, which takes that
+form and works out the embed itself. More than half the catalogue has no trailer
+at all, and for those the widget renders nothing rather than an empty player.
 
 = Ordering a listing =
 

@@ -8,9 +8,10 @@ The integration is **read-only**. Ticket sales stay in Veezi; the plugin renders
 links out to the cinema's own booking pages and never handles a transaction.
 
 > **Status: early.** This release connects to Veezi, syncs the programme —
-> posters included, correctly ordered — into WordPress on a schedule, and gives
-> Elementor the fields and the one widget a film listing needs. The single film
-> page and the chronological calendar are still to come.
+> posters included, correctly ordered — into WordPress on a schedule, gives
+> Elementor the fields and the one widget a film listing needs, and gives every
+> film a page of its own. The chronological calendar and a coming-soon listing
+> are still to come.
 
 ## What it syncs
 
@@ -18,9 +19,9 @@ A sync reads three Veezi endpoints and turns them into ordinary WordPress
 content:
 
 - **Films** (`veezi_film`) — one per film something is scheduled for, carrying
-  the synopsis, runtime, distributor, release date, trailer link and poster,
-  filed under genre and classification taxonomies. Films are never deleted, so a
-  link to one keeps working after its season ends.
+  the synopsis, runtime, distributor, release date, cast and crew, trailer link
+  and poster, filed under genre and classification taxonomies. Films are never
+  deleted, so a link to one keeps working after its season ends.
 - **Sessions** (`veezi_session`) — one per screening, with its start and end,
   its booking link, and whether it is sold out or nearly so.
 
@@ -218,7 +219,7 @@ builder cannot express.
 
 ### Fields to bind
 
-Seven entries appear in Elementor's dynamic-data picker under **Veezi
+Eight entries appear in Elementor's dynamic-data picker under **Veezi
 Programme**:
 
 | Tag | On a film | On a screening |
@@ -227,6 +228,7 @@ Programme**:
 | **Runtime (minutes)** | a bare number — add "min" with the tag's own After control | — |
 | **Classification** | the rating | — |
 | **Genre** | every genre it is filed under | — |
+| **Cast and Crew** | everybody credited, or one role at a time | — |
 | **Trailer Link** | the trailer, as a link a video widget understands | — |
 | **Session Time** | when it next screens | that screening's time |
 | **Booking Link** | the soonest screening still on sale | that screening, unless it is sold out |
@@ -243,6 +245,15 @@ while five others are on sale.
 
 Anything absent resolves to nothing rather than to an error, so a card built for
 a film with a trailer keeps working for the one without.
+
+**Cast and Crew** carries a **Role** control, because a film page wants the same
+field twice under two headings. Left alone it is the whole credit list with each
+person's role beside their name; set to a role — Director, Screenwriter,
+Producer or Actor — it is the names alone, in the order Veezi lists them, which
+is billing order. The heading above them is yours, the same way the runtime tag
+gives a bare number and leaves "min" to you. Those four are every role the
+catalogue currently uses; if Veezi starts sending a fifth, whoever holds it still
+appears in the full list under Veezi's own word for it.
 
 ### The session times widget
 
@@ -276,6 +287,47 @@ in that case as a button with no destination rather than not at all — so it
 looks clickable and is not. Give it a display condition, or delete it and let the
 session times do the booking, which they already do: every time in the list is a
 link to the seats for that screening.
+
+### A film page to start from
+
+Every film also has a page of its own, at `/film/<its name>/`. The address is
+settled the first time the film is published and never recomputed afterwards, so
+a distributor renaming a film upstream — a subtitle appears, a colon moves —
+does not break the links already out there. And the page goes on resolving after
+the last screening has passed: the film leaves the listing and loses its next
+screening, but the record and its address stay where they were, because a link
+somebody shared in August should still open in December.
+
+`templates/film-page.json` is the single film view: poster, title, the same
+details a card shows, *directed by* / *written by* / *starring*, every remaining
+screening from the same **Session Times** widget the card uses, the synopsis and
+the trailer. Import it the same way, then place it in a theme-builder **Single**
+template for Films. The theme builder is an Elementor Pro feature; without it
+WordPress falls back to the theme's own single template, which shows the title
+and the synopsis and nothing else this plugin knows about.
+
+It ships with **no Book now button**, deliberately, and that is the one
+difference from the card worth understanding. Every film page eventually becomes
+an archived film page — that is the promise this whole view is built on — and on
+one of those the booking link resolves to nothing, which Elementor's button
+widget renders as a button with no destination rather than as no button. On a
+card that state is rare, because a Now Showing listing only holds films that are
+on sale; here it is certain and permanent. The session times carry the booking
+anyway: every time in the list is a link to the seats for that screening. Add a
+button if you want one, and give it a display condition.
+
+The trailer is Elementor's own video widget with its link bound to **Trailer
+Link**. Veezi sends a YouTube *watch* URL, which is not an address a player can
+be pointed at, and the video widget takes that form and works out the embed
+itself — along with every privacy, playback and lightbox setting it offers,
+which is a better place for that knowledge than a regular expression here. More
+than half the catalogue has no trailer at all; for those the binding resolves to
+nothing and the widget renders nothing, so there is no empty player to hide.
+
+Two things follow from that widget. For YouTube it mounts the player with
+script, so nothing shows with JavaScript off; and the template sets it to
+YouTube, which is the only thing Veezi has ever sent — a trailer hosted anywhere
+else needs the type changed to match.
 
 ### Ordering
 

@@ -53,6 +53,13 @@ final class ContentModel {
 	public const FILM_RELEASED    = '_veezi_released_on';
 	public const FILM_TRAILER     = '_veezi_trailer_url';
 
+	/**
+	 * Everybody credited on the film, encoded. The one field here that is a list
+	 * rather than a value, because a role is a fact about a person *on this
+	 * film* and there is nowhere else to keep it. See {@see Person::encode()}.
+	 */
+	public const FILM_PEOPLE = '_veezi_people';
+
 	/*
 	 * Two answers the sync works out and writes down, because a listing would
 	 * otherwise have to ask the database a second question for every row it
@@ -87,8 +94,17 @@ final class ContentModel {
 	 *
 	 * Upstream artwork is around 1340x1920 and the only smaller variant Veezi
 	 * offers is 125x182, a thumbnail for a box-office screen. WordPress's own
-	 * `medium` is 300px wide, which is thin on a modern display, and `large` is
-	 * generous for a grid. 600 is a card at twice its rendered width.
+	 * `medium` is 300px wide, which is thin on a modern display. 600 is a card
+	 * at twice its rendered width, and comfortable as the hero of a film page
+	 * too — which is the other place it is asked for.
+	 *
+	 * Registered here rather than reaching for one of WordPress's own, because
+	 * WordPress's own are a site setting and can be turned off: on the site this
+	 * was written for `large` is not generated at all, so a template asking for
+	 * it silently gets the full-resolution original instead. Measured on a real
+	 * poster there: 588x900 at 118KB from this size, against 446KB for the
+	 * original — and the originals run to five megabytes when a distributor
+	 * supplies a lossless PNG.
 	 */
 	public const POSTER_SIZE = 'veezi-poster';
 

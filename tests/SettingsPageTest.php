@@ -165,17 +165,18 @@ final class SettingsPageTest extends TestCase {
 	}
 
 	/**
-	 * The starter card ships as a file inside the plugin, which makes it
+	 * The starter templates ship as files inside the plugin, which makes them
 	 * discoverable only by somebody who thinks to look in a plugin directory —
 	 * which is nobody. This screen is the one place an administrator already
 	 * knows about, so the way in starts here.
 	 */
-	public function test_the_screen_offers_the_starter_card(): void {
+	public function test_the_screen_offers_the_starter_templates(): void {
 		$this->become_administrator();
 
 		$html = $this->render( array( $this->page, 'render' ) );
 
 		$this->assertStringContainsString( SettingsPage::FILM_CARD, $html );
+		$this->assertStringContainsString( SettingsPage::FILM_PAGE, $html );
 		$this->assertStringContainsString( 'Saved Templates', $html );
 	}
 

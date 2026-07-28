@@ -45,6 +45,7 @@ final class Integration {
 	 */
 	private const TAGS = array(
 		Tags\BookingUrl::class,
+		Tags\CastAndCrew::class,
 		Tags\Classification::class,
 		Tags\Genre::class,
 		Tags\Poster::class,

@@ -1,0 +1,236 @@
+{
+	"version": "0.4",
+	"title": "Veezi film page",
+	"type": "container",
+	"page_settings": [],
+	"content": [
+		{
+			"id": "vzpage10",
+			"elType": "container",
+			"isInner": false,
+			"settings": {
+				"content_width": "full",
+				"flex_direction": "column",
+				"flex_gap": {
+					"unit": "px",
+					"size": 32,
+					"column": "32",
+					"row": "32",
+					"isLinked": true
+				}
+			},
+			"elements": [
+				{
+					"id": "vzpage20",
+					"elType": "container",
+					"isInner": true,
+					"settings": {
+						"content_width": "full",
+						"flex_direction": "row",
+						"flex_gap": {
+							"unit": "px",
+							"size": 32,
+							"column": "32",
+							"row": "32",
+							"isLinked": true
+						}
+					},
+					"elements": [
+						{
+							"id": "vzpage21",
+							"elType": "widget",
+							"widgetType": "image",
+							"settings": {
+								"image": {
+									"url": "",
+									"id": ""
+								},
+								"image_size": "veezi-poster",
+								"__dynamic__": {
+									"image": "[elementor-tag id=\"vzpage21\" name=\"veezi-poster\" settings=\"%7B%7D\"]"
+								}
+							},
+							"elements": []
+						},
+						{
+							"id": "vzpage30",
+							"elType": "container",
+							"isInner": true,
+							"settings": {
+								"content_width": "full",
+								"flex_direction": "column",
+								"flex_gap": {
+									"unit": "px",
+									"size": 16,
+									"column": "16",
+									"row": "16",
+									"isLinked": true
+								}
+							},
+							"elements": [
+								{
+									"id": "vzpage39",
+									"elType": "widget",
+									"widgetType": "heading",
+									"settings": {
+										"title": "Film title",
+										"header_size": "h1",
+										"__dynamic__": {
+											"title": "[elementor-tag id=\"vzpage39\" name=\"post-title\" settings=\"%7B%7D\"]"
+										}
+									},
+									"elements": []
+								},
+								{
+									"id": "vzpage32",
+									"elType": "container",
+									"isInner": true,
+									"settings": {
+										"content_width": "full",
+										"flex_direction": "row",
+										"flex_gap": {
+											"unit": "px",
+											"size": 12,
+											"column": "12",
+											"row": "12",
+											"isLinked": true
+										}
+									},
+									"elements": [
+										{
+											"id": "vzpage31",
+											"elType": "widget",
+											"widgetType": "heading",
+											"settings": {
+												"title": "PG",
+												"header_size": "p",
+												"__dynamic__": {
+													"title": "[elementor-tag id=\"vzpage31\" name=\"veezi-classification\" settings=\"%7B%7D\"]"
+												}
+											},
+											"elements": []
+										},
+										{
+											"id": "vzpage33",
+											"elType": "widget",
+											"widgetType": "heading",
+											"settings": {
+												"title": "100 min",
+												"header_size": "p",
+												"__dynamic__": {
+													"title": "[elementor-tag id=\"vzpage33\" name=\"veezi-runtime\" settings=\"%7B%22after%22%3A%22+min%22%7D\"]"
+												}
+											},
+											"elements": []
+										},
+										{
+											"id": "vzpage38",
+											"elType": "widget",
+											"widgetType": "heading",
+											"settings": {
+												"title": "Drama",
+												"header_size": "p",
+												"__dynamic__": {
+													"title": "[elementor-tag id=\"vzpage38\" name=\"veezi-genre\" settings=\"%7B%7D\"]"
+												}
+											},
+											"elements": []
+										}
+									]
+								},
+								{
+									"id": "vzpage34",
+									"elType": "container",
+									"isInner": true,
+									"settings": {
+										"content_width": "full",
+										"flex_direction": "column",
+										"flex_gap": {
+											"unit": "px",
+											"size": 4,
+											"column": "4",
+											"row": "4",
+											"isLinked": true
+										}
+									},
+									"elements": [
+										{
+											"id": "vzpage35",
+											"elType": "widget",
+											"widgetType": "heading",
+											"settings": {
+												"title": "Directed by Ada Vaughan",
+												"header_size": "p",
+												"__dynamic__": {
+													"title": "[elementor-tag id=\"vzpage35\" name=\"veezi-cast-and-crew\" settings=\"%7B%22role%22%3A%22Director%22%2C%22before%22%3A%22Directed+by+%22%7D\"]"
+												}
+											},
+											"elements": []
+										},
+										{
+											"id": "vzpage36",
+											"elType": "widget",
+											"widgetType": "heading",
+											"settings": {
+												"title": "Written by Ada Vaughan",
+												"header_size": "p",
+												"__dynamic__": {
+													"title": "[elementor-tag id=\"vzpage36\" name=\"veezi-cast-and-crew\" settings=\"%7B%22role%22%3A%22Screenwriter%22%2C%22before%22%3A%22Written+by+%22%7D\"]"
+												}
+											},
+											"elements": []
+										},
+										{
+											"id": "vzpage37",
+											"elType": "widget",
+											"widgetType": "heading",
+											"settings": {
+												"title": "Starring Wilhelmina Cray, Bo Aldridge",
+												"header_size": "p",
+												"__dynamic__": {
+													"title": "[elementor-tag id=\"vzpage37\" name=\"veezi-cast-and-crew\" settings=\"%7B%22role%22%3A%22Actor%22%2C%22before%22%3A%22Starring+%22%7D\"]"
+												}
+											},
+											"elements": []
+										}
+									]
+								},
+								{
+									"id": "vzpage40",
+									"elType": "widget",
+									"widgetType": "veezi-session-times",
+									"settings": {
+										"show_date": "yes",
+										"date_format": "D j M",
+										"time_format": "g:i a"
+									},
+									"elements": []
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "vzpage50",
+					"elType": "widget",
+					"widgetType": "theme-post-content",
+					"settings": {},
+					"elements": []
+				},
+				{
+					"id": "vzpage60",
+					"elType": "widget",
+					"widgetType": "video",
+					"settings": {
+						"video_type": "youtube",
+						"youtube_url": "",
+						"__dynamic__": {
+							"youtube_url": "[elementor-tag id=\"vzpage60\" name=\"veezi-trailer-url\" settings=\"%7B%7D\"]"
+						}
+					},
+					"elements": []
+				}
+			]
+		}
+	]
+}

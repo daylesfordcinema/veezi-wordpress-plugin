@@ -28,6 +28,9 @@ defined( 'ABSPATH' ) || exit;
  * `$poster_url` is the full-resolution artwork. Veezi offers two companions to
  * it that a website has no use for: a 125x182 thumbnail meant for a box-office
  * screen, and a backdrop which is a second multi-megabyte image.
+ *
+ * `$people` is the other list: everybody credited, in billing order — often
+ * empty, because two records in the live catalogue have no credits at all.
  */
 final class Film {
 
@@ -41,7 +44,8 @@ final class Film {
 		public readonly string $distributor,
 		public readonly string $released_on,
 		public readonly string $trailer_url,
-		public readonly string $poster_url
+		public readonly string $poster_url,
+		public readonly array $people
 	) {}
 
 	/**
@@ -65,7 +69,8 @@ final class Film {
 			isset( $payload['Distributor'] ) ? trim( (string) $payload['Distributor'] ) : '',
 			self::released_on( isset( $payload['OpeningDate'] ) ? (string) $payload['OpeningDate'] : '' ),
 			isset( $payload['FilmTrailerUrl'] ) ? trim( (string) $payload['FilmTrailerUrl'] ) : '',
-			isset( $payload['FilmPosterUrl'] ) ? trim( (string) $payload['FilmPosterUrl'] ) : ''
+			isset( $payload['FilmPosterUrl'] ) ? trim( (string) $payload['FilmPosterUrl'] ) : '',
+			Person::all_from_payload( isset( $payload['People'] ) ? (array) $payload['People'] : array() )
 		);
 	}
 

@@ -37,8 +37,9 @@ final class SettingsPage {
 	public const CHECK_ACTION = 'veezi_check_connection';
 	public const SYNC_ACTION  = 'veezi_sync_now';
 
-	/** The starter card, relative to the plugin's main file. */
+	/** The starter templates, relative to the plugin's main file. */
 	public const FILM_CARD = 'templates/film-card.json';
+	public const FILM_PAGE = 'templates/film-page.json';
 
 	/**
 	 * What the button just pressed did waits here for the redirect that follows
@@ -320,12 +321,12 @@ final class SettingsPage {
 	}
 
 	/**
-	 * Where to find the starter card.
+	 * Where to find the starter templates.
 	 *
-	 * The template ships as a file, so without this it is discoverable only by
-	 * somebody who thinks to look inside a plugin directory — which is nobody.
-	 * An Elementor developer returning to this site a year from now should be
-	 * able to find the way in from the screen the plugin already has.
+	 * They ship as files, so without this they are discoverable only by somebody
+	 * who thinks to look inside a plugin directory — which is nobody. An
+	 * Elementor developer returning to this site a year from now should be able
+	 * to find the way in from the screen the plugin already has.
 	 */
 	private function render_starter_templates(): void {
 		echo '<hr />';
@@ -333,15 +334,37 @@ final class SettingsPage {
 
 		echo '<p class="description">';
 		esc_html_e(
-			'A film card, ready to import and restyle: poster, title, details, session times and a booking button, with every field already bound. Download it, then go to Templates → Saved Templates → Import Templates.',
+			'Ready to import and restyle, with every field already bound. Download one, then go to Templates → Saved Templates → Import Templates.',
 			'veezi-wordpress-plugin'
 		);
 		echo '</p>';
 
+		self::render_starter_template(
+			self::FILM_CARD,
+			__( 'Download the film card', 'veezi-wordpress-plugin' ),
+			__( 'One film in a listing: poster, title, details, session times and a booking button. Use it as the loop item of a Now Showing grid.', 'veezi-wordpress-plugin' )
+		);
+
+		self::render_starter_template(
+			self::FILM_PAGE,
+			__( 'Download the film page', 'veezi-wordpress-plugin' ),
+			__( 'A film’s own page: synopsis, cast and crew, every remaining screening and the trailer. Use it inside a theme-builder Single template for Films.', 'veezi-wordpress-plugin' )
+		);
+	}
+
+	/**
+	 * One template, with a line saying what it is for.
+	 *
+	 * @param string $template    Its path, relative to the plugin's main file.
+	 * @param string $label       What the button reads.
+	 * @param string $description What somebody would use it for.
+	 */
+	private static function render_starter_template( string $template, string $label, string $description ): void {
 		printf(
-			'<p><a class="button button-secondary" href="%1$s" download>%2$s</a></p>',
-			esc_url( plugins_url( self::FILM_CARD, \Veezi\WordPress\PLUGIN_FILE ) ),
-			esc_html__( 'Download the film card', 'veezi-wordpress-plugin' )
+			'<p class="description">%1$s</p><p><a class="button button-secondary" href="%2$s" download>%3$s</a></p>',
+			esc_html( $description ),
+			esc_url( plugins_url( $template, \Veezi\WordPress\PLUGIN_FILE ) ),
+			esc_html( $label )
 		);
 	}
 

@@ -304,6 +304,7 @@ final class DynamicTagsTest extends TestCase {
 		$this->assertSame(
 			array(
 				'veezi-booking-url'    => 'Booking Link',
+				'veezi-cast-and-crew'  => 'Cast and Crew',
 				'veezi-classification' => 'Classification',
 				'veezi-genre'          => 'Genre',
 				'veezi-poster'         => 'Poster',
