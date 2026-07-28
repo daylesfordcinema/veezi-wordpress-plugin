@@ -1,0 +1,33 @@
+# What a release archive leaves out.
+#
+# The archive is the installable plugin, not the repository. Everything listed
+# here exists to develop and check the code and does nothing once the plugin is
+# installed, so it is excluded at the source rather than in the packaging
+# command — the list then lives next to the files it names, and GitHub's own
+# generated source archives honour it too.
+#
+# Build one the way a release does:
+#
+#   git archive --format=zip --prefix=veezi-wordpress-plugin/ \
+#     -o veezi-wordpress-plugin.zip HEAD
+#
+# The prefix is not decoration. WordPress installs an archive under whatever its
+# single top-level directory is called, and that name has to be the plugin slug
+# — which is why a repository's generated source archive, named for the tag,
+# installs the plugin under the wrong directory and breaks its own updates.
+
+/.github            export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/.phpcs.xml.dist    export-ignore
+/bin                export-ignore
+/docs               export-ignore
+/phpunit.xml.dist   export-ignore
+/tests              export-ignore
+
+# Composer here is the linter and the test runner, nothing else: the plugin has
+# no runtime dependencies and carries its own autoloader. Shipping the manifest
+# would invite an `install` inside a live plugin directory, which would put the
+# whole development toolchain on the server to no purpose.
+/composer.json      export-ignore
+/composer.lock      export-ignore

@@ -1,5 +1,7 @@
 # Veezi for WordPress
 
+[![CI](https://github.com/daylesfordcinema/veezi-wordpress-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/daylesfordcinema/veezi-wordpress-plugin/actions/workflows/ci.yml)
+
 Publishes a cinema's [Veezi](https://www.veezi.com/) programme as WordPress
 content — films, sessions, posters and booking links — so the website follows
 the ticketing system instead of being retyped from it.
@@ -451,16 +453,54 @@ plugin a visitor sees. Standing in a fake for it would prove only that the fake
 matches what we believed the API to be, which is the one thing already known.
 
 What that does **not** cover is Elementor Pro, which is commercial and cannot be
-installed in a public pipeline. Loop grid, template import and the theme builder
-are all Pro, so anything that only happens inside them — a card rendering for
-each film of a loop, ordering actually honouring menu order — is checked by hand
-in a development replica before release. This is the argument for keeping the
-presentation layer thin: `src/Presentation` holds the answers and is fully
-tested, and `src/Elementor` is the adapter that hands them over.
+installed in a public pipeline. Loop grid, the query control and the theme
+builder are all Pro, so anything that only happens inside them — a card
+rendering for each film of a loop, ordering actually honouring menu order — is
+checked by hand before release. That list is
+[docs/pre-release-checklist.md](docs/pre-release-checklist.md), and it is
+deliberately short: this is the argument for keeping the presentation layer
+thin, because `src/Presentation` holds the answers and is fully tested, and
+`src/Elementor` is the adapter that hands them over.
 
 Fixtures are synthesised rather than captured. A real capture from a cinema's
 account would carry its trading details, sales figures and unannounced
 programming into a public repository.
+
+### What CI runs
+
+Pushes to `main` and pull requests run the coding-standards check and the whole
+suite, on PHP 8.2, WordPress 7.0.2 and MariaDB 10.11 — the versions the plugin
+is deployed onto. It does that by running `bin/install-wp-tests.sh` above rather
+than by describing the environment a second time, so the pinned versions have
+one home and a runner cannot drift from a developer's machine.
+
+The workflow declares read-only permissions and reads no secret, and it runs on
+`pull_request` rather than `pull_request_target`, so a pull request from a fork
+executes that fork's code with nothing in scope worth taking. Everything
+privileged is in `release.yml`, which only a tag push reaches.
+
+### Releasing
+
+Bump the version in all three places it is written down — the plugin header, the
+`VERSION` constant and `Stable tag` in `readme.txt` — commit, and tag that commit
+`v<version>`. A test checks the three against each other, and the release
+workflow checks them against the tag and refuses a tag that disagrees.
+
+Pushing the tag runs the ordinary checks, then builds the archive and attaches it
+to the release. It is one command, so it can be run by hand for a recovery
+upload:
+
+```sh
+git archive --format=zip --prefix=veezi-wordpress-plugin/ \
+  -o veezi-wordpress-plugin-0.1.0.zip v0.1.0
+```
+
+The prefix is the whole trick. WordPress names an installed plugin after the
+archive's single top-level directory, which is why a repository's own generated
+source archive — named for the tag — installs the plugin under the wrong
+directory and then cannot update itself. What stays out of the archive is
+declared in `.gitattributes`; pass `--worktree-attributes` to try a change to
+that file before committing it.
 
 ## Licence
 
