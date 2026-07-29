@@ -120,3 +120,144 @@ jobs:
             gh release create "$GITHUB_REF_NAME" "$archive" \
               --title "$GITHUB_REF_NAME" --generate-notes
           fi
+
+  ## Put that exact archive on the live site.
+  ##
+  ## This is the trigger decision ticket 12 turns on, resolved the cheapest way:
+  ## a job here, `needs: package`, rather than a second workflow keyed off the
+  ## release. `on: release: published` never fires for a release this workflow
+  ## creates — GitHub does not start runs from events raised by GITHUB_TOKEN —
+  ## and a release published by hand fires it *before* the archive exists. A job
+  ## in this file needs neither: the ordering is `needs:`, not a hope, and the
+  ## whole thing is still the tag-only workflow no outside contributor can reach.
+  ##
+  ## Nothing about the server is written here, because this file is public. The
+  ## host, the account, the path and the key are the `production` environment's
+  ## secrets, set once in repository settings; docs/deploying.md lists them, and
+  ## that environment is also where a required reviewer can hold a deploy for a
+  ## human's yes. The server runbook is in the private repository.
+  deploy:
+    name: Deploy to production
+    needs: package
+    runs-on: ubuntu-latest
+    environment: production
+
+    ## One deploy at a time across every tag, and never cancelled: a run
+    ## half-way through replacing a live plugin is the single outcome worth
+    ## queueing behind. A fixed group name rather than the ref, so two tags
+    ## deploy one after the other instead of at once; cancel-in-progress false,
+    ## so a newer tag waits rather than killing an install mid-flight.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    ## The server pulls the archive itself over HTTPS; nothing here writes to
+    ## the repository.
+    permissions:
+      contents: read
+
+    steps:
+      ## Key-based auth from a deploy key minted in the hosting panel. The host
+      ## allows no key we can install ourselves and runs intrusion protection,
+      ## so a password on a retry loop risks getting the runner banned; a single
+      ## keyed connection carries the whole deploy as one authentication. The
+      ## host's identity is pinned from a secret, not trusted on first sight.
+      ## The key and the host key arrive as env and are written out as data with
+      ## printf, so neither — the one piece of free-form secret material here —
+      ## is ever parsed as shell.
+      - name: Write the deploy key and pin the host
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      ## Everything the server does, in one connection. The remote script is
+      ## fed on stdin with a quoted heredoc, so the runner does not expand it;
+      ## the values it needs are passed as the remote command's own environment.
+      ## Those values — the slug, the tag-derived version, the asset URL built
+      ## from them, and the WordPress path from a secret — are fixed or already
+      ## validated (package checked the tag against the declared version), not
+      ## anything a stranger supplies, so single-quoting them is enough. The one
+      ## free-form secret, the key, is not among them: it was written as data
+      ## above and never reaches a command line.
+      - name: Install this release and prove it took
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT }}
+          WP_PATH: ${{ secrets.DEPLOY_PATH }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          ## package checked the tag against the declared version already, so
+          ## the version is the tag without its v, and the asset is the file
+          ## package attached under exactly that name.
+          version="${TAG#v}"
+          asset="https://github.com/$REPO/releases/download/$TAG/$SLUG-$version.zip"
+
+          ssh -i "$HOME/.ssh/deploy_key" \
+              -o IdentitiesOnly=yes \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+              -p "${SSH_PORT:-22}" \
+              "$SSH_USER@$SSH_HOST" \
+              "SLUG='$SLUG' VERSION='$version' ASSET='$asset' WP_PATH='$WP_PATH' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$WP_PATH"
+
+          ## Install exactly this archive through WordPress's own installer —
+          ## the same code path a manual upload takes, so the result is the same
+          ## file the admin uploader would leave. --force overwrites the running
+          ## copy; a first-ever deploy lands it inactive, so activate after
+          ## (a no-op, exit 0, when it is already on).
+          wp plugin install "$ASSET" --force
+          wp plugin activate "$SLUG"
+
+          ## What is installed must be the tag's version, not whatever was here.
+          installed="$(wp plugin get "$SLUG" --field=version)"
+          if [ "$installed" != "$VERSION" ]; then
+            echo "Installed version $installed is not the tagged $VERSION." >&2
+            exit 1
+          fi
+
+          ## A real sync, run directly rather than waited for — the site's cron
+          ## is external and off by default. `wp cron event run` exits 0 even
+          ## when the sync recorded a failure, so trust the plugin's own record,
+          ## not this exit code: a failure option present means the run failed,
+          ## and the session count lives only in the success summary's text.
+          wp cron event run veezi_sync
+          if wp option get veezi_last_failure >/dev/null 2>&1; then
+            echo "The post-deploy sync recorded a failure:" >&2
+            wp option get veezi_last_failure --format=json >&2
+            exit 1
+          fi
+          summary="$(wp option get veezi_last_sync --format=json)"
+          sessions="$(printf '%s' "$summary" | grep -oE '[0-9][0-9,]* sessions?' | head -n1 | tr -cd '0-9' || true)"
+          if [ -z "$sessions" ] || [ "$sessions" -eq 0 ]; then
+            echo "The post-deploy sync yielded no sessions: $summary" >&2
+            exit 1
+          fi
+          echo "Deployed $VERSION; sync reports $sessions sessions."
+
+          ## Purge the page cache so a visitor gets the new version, not a
+          ## stored render of the old one. The install already succeeded and was
+          ## proven above, so a purge that fails is a warning, not a rollback: a
+          ## stale page expires on its own, and failing here would paint a good
+          ## deploy red.
+          wp breeze purge --cache=all \
+            || echo "Warning: page-cache purge failed; it will expire on its own." >&2
+          REMOTE
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$HOME/.ssh/deploy_key" "$HOME/.ssh/known_hosts"
