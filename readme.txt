@@ -12,178 +12,205 @@ Publishes a cinema's Veezi programme as WordPress content — films, sessions, p
 
 == Description ==
 
-Cinemas running on Veezi keep their programme in one place and their website in
-another, and the two drift apart the moment someone forgets to retype a session
-time. This plugin reads the programme from the Veezi API and turns it into
-ordinary WordPress content, so the website follows the ticketing system
-automatically.
+Your cinema's programme already exists, in Veezi. This plugin reads it and turns
+it into ordinary WordPress content, so your website follows the ticketing system
+instead of being retyped from it every week.
 
-Because the result is native WordPress content, the presentation is built with
-whatever page builder the site already uses. The plugin's own settings screen
-carries only the decisions that need a human.
+Films become posts. Screenings become posts. Posters land in your media library.
+Booking links point at your own Veezi checkout. From there you build the listings
+with whatever page builder the site already uses — the plugin's own settings
+screen carries only the decisions that need a human.
 
-The integration is strictly read-only. Ticket sales stay with Veezi: the plugin
-links out to the cinema's own booking pages and never handles a transaction.
+The integration is strictly read-only. Ticket sales, seat selection and payment
+all stay in Veezi: the plugin links out to your own booking pages and never
+handles a transaction.
 
-= What is here so far =
+= Getting started =
 
-This is an early release. It connects to Veezi, confirms which cinema the site
-is talking to, and syncs the programme hourly: one record per film and one per
-screening, with showtimes read in the cinema's own timezone, booking links, and
-posters copied into the media library. It also gives Elementor the fields and
-the one widget a film listing needs, and every film has a page of its own with
-its credits, screenings and trailer. The chronological calendar and a coming-soon
-listing are the next pieces of work.
+1. Activate the plugin.
+2. In Veezi Back Office, go to Settings → Web and copy your access token.
+3. In WordPress, go to Settings → Veezi, paste it in and press "Save settings".
+   The page comes back naming the cinema you are connected to.
+4. Press "Sync now", or wait — the programme syncs by itself every hour.
+
+New "Films" and "Sessions" menus appear in the sidebar. If films are listed there
+with their posters, everything after that is page building.
+
+= What you can build =
+
+Four listings, all from ordinary page-builder widgets bound to the fields this
+plugin adds:
+
+* Now Showing — a grid of the films you can buy a ticket for.
+* What's on — every upcoming screening in order, grouped by day, for the visitor
+  with a free Thursday rather than a film in mind.
+* Coming Soon — films you have scheduled but not yet put on sale. Off until you
+  turn it on; see below.
+* A page for every film, at /film/its-name/, with its credits, screenings,
+  synopsis and trailer.
+
+Four importable starter templates ship with the plugin, one for each, with every
+field already bound. There are links to them on Settings → Veezi. Import one and
+restyle it rather than starting from an empty canvas.
+
+= Fields you can bind =
+
+Eleven entries appear in Elementor's dynamic-data picker under "Veezi Programme":
+poster, runtime, classification, genre, cast and crew, trailer link, film title,
+session time, availability, booking link, and a "nothing scheduled" sentence for
+when the cinema is between seasons.
+
+They read whichever record is being rendered, so the same card works inside a
+loop and on a film's own page with nothing to configure, and duplicating a
+template behaves exactly like the one you copied.
+
+Three carry controls: Session Time takes a date format, Cast and Crew takes a
+role (director, screenwriter, producer or actor, or everyone), and Availability
+takes the wording of its three badges.
+
+A card also needs every time that film screens, which is a list inside a list:
+loop widgets cannot nest and one field can offer only one value. So the plugin
+ships one widget of its own, "Session Times", which lists a film's remaining
+screenings with a booking link for each. A screening nobody can book stays in the
+list, marked, with no link.
+
+= Getting the order right =
+
+Set every loop grid's sort to "Menu Order", ascending. The plugin numbers films
+by when they next screen and screenings chronologically, and writes those numbers
+into that field. Left on the default you get publication date, which for synced
+content is whenever the sync happened to create the record — a meaningless order
+that reports no error anywhere.
+
+= Coming soon =
+
+Veezi holds next season as well as this week. Sessions that are scheduled but not
+yet selling are called planned, and out of the box the plugin publishes none of
+them: a planned session is not an announcement, and its time can still change.
+
+Two controls on Settings → Veezi change that — whether to publish what is coming,
+and how far ahead to look, counted in whole days in the cinema's own timezone and
+defaulting to a fortnight. Anything beyond the horizon waits, and publishes itself
+when the horizon reaches it.
+
+Switching it on is an announcement, so the screen says so. It is reversible:
+switch it off and the next sync takes it all back. A planned screening never
+carries a booking link, because Veezi has none to give. And a film with anything
+on sale is never "coming soon" — it is here, so it stays in the current listing
+showing the dates you can actually buy.
 
 = Keeping the programme up to date =
 
-A sync runs hourly on WordPress's cron, so nobody has to remember anything, and
-a host that drives that queue externally refreshes a site nobody has visited.
-Settings → Veezi shows when the programme last synced and what that run did,
-when the next one is due, and has a "Sync now" button for the last-minute
-change. Only one sync runs at a time; anything that arrives while one is going
-stands aside.
-
-To sync more or less often:
-
-`add_filter( 'veezi_sync_recurrence', fn() => 'twicedaily' );`
+A sync runs hourly on WordPress's cron, so nobody has to remember anything, and a
+host that drives that queue externally refreshes a site nobody has visited.
+Settings → Veezi shows when the programme last synced and what that run did, when
+the next one is due, and has a "Sync now" button for the last-minute change. Only
+one sync runs at a time; anything arriving while one is going stands aside.
 
 = If Veezi is unreachable =
 
 An outage at the ticketing provider does not blank the website. Every feed is
-fetched before anything is written, so a failed or partial fetch stops the run
-and leaves the last good programme published, ordered and complete. A visitor
-sees nothing amiss; the failure is written to the server's error log and raised
-as an admin notice, so the cinema finds out before a customer does. The notice
-goes away by itself on the next run that works.
+fetched before anything is written, so a failed or partial fetch stops the run and
+leaves the last good programme published, ordered and complete. A visitor sees
+nothing amiss; the failure is written to the server's error log and raised as an
+admin notice, so the cinema finds out before a customer does. The notice goes away
+by itself on the next run that works.
 
-Responses are cached for five minutes, since Veezi publishes no rate limits.
-Failures are never cached, and "Sync now" and "Test connection" both ignore the
-cache.
+= Showtimes and timezones =
+
+Veezi reports showtimes with no timezone on them. The plugin reads them in the
+cinema's own timezone, which it learns from the Veezi account, so showtimes are
+right even on a WordPress install whose timezone is unset or wrong. Everything
+else dated on the site follows the site's timezone, so when the two disagree you
+get an admin notice naming both.
+
+= Posters =
+
+Artwork is copied into the media library and set as the film's featured image, so
+WordPress makes its own sizes from it and the cinema can reuse it in a newsletter
+without going back to the ticketing system. Veezi serves one full-resolution
+poster and the only smaller variant it offers is a box-office thumbnail, so
+linking to the originals would cost a visitor several megabytes a page view.
 
 = Deactivating and deleting =
 
 Deactivating takes the scheduled sync off the queue and leaves everything else
-alone. Deleting removes what the plugin configured itself with — the access
-token above all — and leaves the films, sessions and posters it published, since
-those have public addresses and sit in the media library like any other content.
+alone. Deleting removes what the plugin configured itself with — the access token
+above all — and leaves the films, sessions and posters it published, since those
+have public addresses and sit in the media library like any other content.
 
-= Building a film card =
+== Installation ==
 
-Eight fields appear in Elementor's dynamic-data picker under "Veezi Programme":
-poster, runtime, classification, genre, cast and crew, trailer link, session
-time and booking link. Bind them to ordinary widgets the way you would bind any
-custom field — they read whichever record is being rendered, so the same card
-works inside a loop and on a film's own page with nothing to configure.
+1. Upload the plugin zip under Plugins → Add New → Upload Plugin, or copy the
+   folder into wp-content/plugins/.
+2. Activate it.
+3. Go to Settings → Veezi and paste the access token from Veezi Back Office
+   (Settings → Web).
+4. Press "Save settings". The screen names the cinema you are connected to.
 
-Cast and Crew carries a Role control: left alone it is the whole credit list
-with each person's role beside their name, and set to Director, Screenwriter,
-Producer or Actor it is those names alone, in the order Veezi lists them.
-
-A card also needs every time that film screens, which is a list inside a list:
-loop widgets cannot nest and a dynamic tag can offer only one value. So the
-plugin ships one widget of its own, "Session Times", which lists a film's
-remaining screenings with a booking link for each, and carries controls for what
-a row shows and how the times read. A sold-out screening stays on the card,
-marked, with no link.
-
-An importable starter card ships with the plugin — poster, title, details,
-session times and a booking button, already bound. There is a link to it on
-Settings → Veezi.
-
-= The film page =
-
-Every film has a page of its own at /film/its-name/. The address is settled the
-first time the film is published and never recomputed, so a film renamed
-upstream does not break links already shared, and the page keeps resolving after
-the last screening has passed.
-
-A second starter template ships for that page: poster, title, details, directed
-by, written by, starring, every remaining screening from the same Session Times
-widget, the synopsis and the trailer. Place it in a theme-builder Single
-template for Films — that part is an Elementor Pro feature; without it the theme
-renders the title and synopsis on its own.
-
-It carries no booking button, on purpose. Every film page eventually becomes an
-archived one, and a booking link with nothing to book renders as a button that
-goes nowhere. The session times are the booking surface: each time in the list
-links to the seats for that screening.
-
-Veezi sends trailers as YouTube watch links, which no player can be pointed at
-directly. The template binds one to Elementor's video widget, which takes that
-form and works out the embed itself. More than half the catalogue has no trailer
-at all, and for those the widget renders nothing rather than an empty player.
-
-= Ordering a listing =
-
-Films and screenings both carry a rank in WordPress's menu order field — films
-by when they next screen, screenings chronologically — so choosing "Menu Order"
-in a loop grid gives the right order with nothing to configure. The default
-sort is publication date, which for synced content is when the sync happened to
-create the record and means nothing at all.
-
-Screenings are deleted once they finish, so a listing does not have to filter
-them out. A film whose screenings have all passed leaves the current listing but
-keeps its page, so a link shared while it was on still works.
-
-= Posters =
-
-Artwork is copied into the media library and set as the film's featured image,
-so WordPress makes its own sizes from it and the cinema can reuse it elsewhere.
-Veezi serves one full-resolution poster, and the only smaller variant it offers
-is too small for a card, so linking to the originals would cost a visitor
-several megabytes a page view.
-
-= Getting an access token =
-
-Veezi issues one access token per cinema, from Settings → Web in Veezi Back
-Office. Paste it into Settings → Veezi and press "Test connection": a working
-token answers with the cinema's name.
-
-The token is a credential. It is stored as a site option, never rendered back
-into the page once saved, and scrubbed out of any error message before it is
-displayed or logged.
-
-= Supplying the token without the database =
-
-Defining a constant in `wp-config.php` overrides whatever is saved, which is
-how a staging site points at a different Veezi account without a database
-change:
-
-`define( 'VEEZI_API_TOKEN', 'your-token-here' );`
-
-The settings screen says when a constant is in force.
-
-= Cinemas outside Australia and New Zealand =
-
-Veezi issues an account against one regional endpoint. The plugin defaults to
-the Australia/New Zealand one; point it elsewhere with a filter in a small
-plugin of your own:
-
-`add_filter( 'veezi_api_base_url', fn() => 'https://api.uk.veezi.com' );`
+Requires WordPress 6.5 and PHP 8.2. Elementor is free and does most of what is
+described here; the loop grid and the theme builder are Elementor Pro features.
 
 == Frequently Asked Questions ==
 
 = Does this sell tickets? =
 
-No. Ticket purchase, seat selection and payment stay in Veezi. The plugin
-renders booking links that take a visitor to the cinema's Veezi checkout.
+No. Ticket purchase, seat selection and payment stay in Veezi. The plugin renders
+booking links that take a visitor to your own Veezi checkout.
 
 = Is any sales data published? =
 
 No, and it is designed not to be. The API returns seat counts and price card
 names alongside the programme, and the plugin discards them as it reads rather
-than storing them, keeping only "sold out" and "few tickets left", which is all
-a visitor needs. All API calls are made server-side, so the access token — which
+than storing them, keeping only "sold out" and "few tickets left", which is all a
+visitor needs. Every API call is made server-side, so the access token — which
 can read those figures — never reaches a browser.
 
 = Will it work with my theme? =
 
-The plugin produces content, not layout. Nothing about it is tied to a
-particular theme.
+The plugin produces content, not layout. Nothing about it is tied to a particular
+theme.
+
+= Do I need Elementor Pro? =
+
+Not for the fields, the Session Times widget or the film records themselves,
+which all work with free Elementor. The loop grid — which is what turns those
+into a listing — and the theme builder are Pro features.
+
+= I am connected but no films appear. =
+
+Check Sessions in the sidebar. If there are drafts there but nothing published,
+everything you have scheduled is planned rather than on sale. See "Coming soon"
+above.
+
+= My films are in a strange order. =
+
+Set the loop grid's sort to "Menu Order", ascending. See "Getting the order
+right" above.
+
+= Only six films are showing. =
+
+That is Elementor's "Items Per Page", which defaults to six. Raise it.
+
+= Can I use this outside Australia and New Zealand? =
+
+Yes. Veezi issues an account against one regional endpoint and the plugin
+defaults to the Australia/New Zealand one; a one-line filter points it elsewhere.
+The plugin's README has the snippet.
+
+= Can I edit the films and sessions it creates? =
+
+No — the next sync will write over your changes. Change it in Veezi instead.
 
 == Changelog ==
 
 = 0.1.0 =
-* First release: settings screen, access token handling, and a connection check
-  that reports which cinema the site is connected to.
+* Syncs films and screenings from Veezi hourly, with posters copied into the
+  media library and booking links attached.
+* Showtimes read in the cinema's own timezone, not the site's.
+* Eleven dynamic fields and a Session Times widget for building listings.
+* A page for every film, which keeps working after its season ends.
+* A chronological "what's on" listing, grouped by day.
+* Coming Soon, off by default, with a configurable horizon.
+* Four importable starter templates.
+* Settings screen with a connection test, sync status and a "Sync now" button.

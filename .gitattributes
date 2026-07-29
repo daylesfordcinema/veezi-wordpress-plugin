@@ -7,7 +7,11 @@
 # generated source archives honour it too.
 #
 # How an archive is built, and why its single top-level directory has to be the
-# plugin slug, is the README's "Releasing" section.
+# plugin slug, is CONTRIBUTING.md's "Releasing" section.
+#
+# README.md and readme.txt both ship. readme.txt is not documentation about the
+# plugin, it is documentation WordPress itself renders: it is what appears under
+# Plugins → View details on the site the plugin is installed on.
 
 /.github            export-ignore
 /.gitattributes     export-ignore
@@ -17,6 +21,7 @@
 /docs               export-ignore
 /phpunit.xml.dist   export-ignore
 /tests              export-ignore
+/CONTRIBUTING.md    export-ignore
 
 # Composer here is the linter and the test runner, nothing else: the plugin has
 # no runtime dependencies and carries its own autoloader. Shipping the manifest
