@@ -138,16 +138,17 @@ final class ContentModel {
 	 * outlives the listing entry, and {@see Presentation\Screening::for_film()}
 	 * asks for every screening while the chronological listing does not.
 	 *
-	 * Two kinds of query are exempt. Anything in wp-admin, because an
+	 * Two kinds of query are exempt. A screen of wp-admin, because an
 	 * administrator looking at Sessions is looking at the records rather than
-	 * at what a visitor sees. And anything that asks for
-	 * {@see self::EVERY_SCREENING} — which the sync's own lookup must, since a
-	 * record it fails to find is one it creates a second copy of.
+	 * at what a visitor sees — but not an admin-ajax request, which is
+	 * `is_admin()` too and is how the loop grid fetches its second page. And
+	 * anything that asks for {@see self::EVERY_SCREENING}, which the sync's own
+	 * lookup must: a record it fails to find is one it creates a second copy of.
 	 *
 	 * @param WP_Query $query Any query WordPress is about to run.
 	 */
 	public static function hide_screenings_that_have_started( WP_Query $query ): void {
-		if ( is_admin() || $query->get( self::EVERY_SCREENING ) ) {
+		if ( ( is_admin() && ! wp_doing_ajax() ) || $query->get( self::EVERY_SCREENING ) ) {
 			return;
 		}
 
@@ -155,18 +156,36 @@ final class ContentModel {
 			return;
 		}
 
-		// Appended rather than assigned: a query that already carries meta
-		// conditions of its own — the film relation a card's list of times is
-		// matched on, say — keeps them, and WordPress ands the two together.
-		$conditions   = (array) $query->get( 'meta_query' );
-		$conditions[] = array(
+		$existing = $query->get( 'meta_query' );
+		$mine     = array(
 			'key'     => self::SESSION_STARTS,
-			'value'   => (string) time(),
+
+			// To the minute, not to the second. This value goes into the key
+			// WordPress caches the query's results under, so one that moves
+			// every second is a cache this query can never hit and a fresh
+			// entry left behind every second — on a host running a persistent
+			// object cache, which is the one this is written for. The cost is
+			// that a screening can stay listed for its first minute.
+			'value'   => (string) ( time() - time() % MINUTE_IN_SECONDS ),
 			'compare' => '>',
 			'type'    => 'NUMERIC',
 		);
 
-		$query->set( 'meta_query', $conditions );
+		// Wrapped rather than appended. A query carrying meta conditions of its
+		// own keeps them — but appending to them only ands the two while the
+		// existing set is an AND. Appended to an OR this would *widen* the
+		// query, and a screening under way would reappear in the one listing
+		// this exists to keep it out of.
+		$query->set(
+			'meta_query',
+			is_array( $existing ) && array() !== $existing
+				? array(
+					'relation' => 'AND',
+					$existing,
+					$mine,
+				)
+				: array( $mine )
+		);
 	}
 
 	public static function register(): void {

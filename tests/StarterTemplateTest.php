@@ -41,17 +41,17 @@ final class StarterTemplateTest extends TestCase {
 	}
 
 	/**
-	 * The two that describe a film. The session row is a row of the
+	 * The ones that describe a film. The session row is a row of the
 	 * chronological listing — one screening of whatever happens to be on — so
 	 * it carries neither a poster nor a list of times.
 	 *
 	 * @return array<string,array<int,string>>
 	 */
 	public static function film_templates(): array {
-		return array(
-			'the film card' => array( 'film-card.json' ),
-			'the film page' => array( 'film-page.json' ),
-		);
+		$templates = self::templates();
+		unset( $templates['the session row'] );
+
+		return $templates;
 	}
 
 	/**
