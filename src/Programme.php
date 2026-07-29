@@ -111,18 +111,32 @@ final class Programme {
 		$selling   = array();
 		$announced = array();
 
-		// Answered by looking at every session rather than by trusting the one
-		// that happens to be first: the sessions do arrive sorted, but a fact
-		// about a film should not quietly depend on that staying true.
+		// Two passes, because whether a planned screening is published is a
+		// question about its **film** rather than about itself: it is held back
+		// while anything of that film is on sale. So which films are selling has
+		// to be settled for all of them before the first of those decisions can
+		// be made — a single pass would answer correctly or not depending on
+		// which of a film's screenings the sort happened to put first.
 		foreach ( $sessions as $session ) {
 			$film_id = $session->film_id;
 
-			$selling[ $film_id ]   = ( $selling[ $film_id ] ?? false ) || $session->on_sale;
-			$announced[ $film_id ] = ( $announced[ $film_id ] ?? false ) || $this->is_announced( $session );
+			$selling[ $film_id ] = ( $selling[ $film_id ] ?? false ) || $session->on_sale;
 
+			// Answered by looking at every session rather than by trusting the
+			// one that happens to be first: the sessions do arrive sorted, but
+			// a fact about a film should not quietly depend on that staying
+			// true.
 			if ( ! isset( $scheduled[ $film_id ] ) || $session->starts_at < $scheduled[ $film_id ] ) {
 				$scheduled[ $film_id ] = $session->starts_at;
 			}
+		}
+
+		$this->selling = $selling;
+
+		foreach ( $sessions as $session ) {
+			$film_id = $session->film_id;
+
+			$announced[ $film_id ] = ( $announced[ $film_id ] ?? false ) || $this->is_announced( $session );
 
 			if ( ! $this->is_published( $session ) ) {
 				continue;
@@ -138,7 +152,6 @@ final class Programme {
 		$this->remaining = $remaining;
 		$this->soonest   = $soonest;
 		$this->scheduled = $scheduled;
-		$this->selling   = $selling;
 		$this->announced = $announced;
 
 		// Every film here has at least one session — that is what put it here —
@@ -239,13 +252,17 @@ final class Programme {
 	}
 
 	/**
-	 * Whether this film has something scheduled that the cinema has chosen to
-	 * announce ahead of putting it on sale.
+	 * Whether this film is one the cinema is talking about ahead of selling it.
 	 *
-	 * Not the opposite of {@see self::is_on_sale()}: a film showing this week
-	 * with more dates announced for next month is both, and belongs in both
-	 * listings. A visitor reading only one of them would otherwise learn only
-	 * half of what the cinema has said.
+	 * The exact opposite of {@see self::is_on_sale()} wherever both could be
+	 * true, and deliberately so: a film screening on Sunday is not coming soon,
+	 * it is here. Filing such a film under both would leave the phrase doing no
+	 * work and put something a visitor can buy a ticket for right now into the
+	 * listing of things they cannot.
+	 *
+	 * Nothing enforces that here, though — it falls out of the rule below, so
+	 * that there is one place where it is decided rather than two that have to
+	 * agree.
 	 *
 	 * @param string $film_id Its Veezi identifier.
 	 */
@@ -269,10 +286,25 @@ final class Programme {
 	}
 
 	/**
+	 * Whether this planned screening is one the cinema has chosen to advertise.
+	 *
+	 * The film having nothing on sale is the clause that carries the meaning.
+	 * What a cinema advertises for a film it is already selling is the dates you
+	 * can buy — a card that mixed three purchasable evenings with two you cannot
+	 * yet reach is a worse answer to "when can I see this" than either half
+	 * alone, and the dates it would be advertising can still move.
+	 *
+	 * The cost is deliberate and is not small: a season already announced is
+	 * retracted the moment its first date goes on sale, and the chronological
+	 * listing carries a gap where that film's later dates would be while showing
+	 * exactly those dates for a film that has nothing selling. What is bought is
+	 * what is advertised.
+	 *
 	 * @param Session $session One of this programme's screenings.
 	 */
 	private function is_announced( Session $session ): bool {
 		return ! $session->on_sale
+			&& ! $this->is_on_sale( $session->film_id )
 			&& null !== $this->announce_until
 			&& $session->starts_at <= $this->announce_until;
 	}

@@ -9,6 +9,7 @@ namespace Veezi\WordPress\Tests;
 
 use Veezi\WordPress\ComingSoon;
 use Veezi\WordPress\ContentModel;
+use Veezi\WordPress\Presentation\Screening;
 use Veezi\WordPress\Settings;
 use Veezi\WordPress\Tests\Support\TestCase;
 
@@ -227,12 +228,18 @@ final class ComingSoonTest extends TestCase {
 	 * Criterion: a film with both on-sale and planned sessions appears
 	 * correctly in both listings.
 	 *
-	 * Both, not one or the other. It is showing this week, which is what the
-	 * current programme is for; and there are more dates coming that nobody can
-	 * book yet, which is what the other listing is for. Filing it under only one
-	 * would mean a visitor reading the wrong listing never learns half of it.
+	 * Which for the coming-soon one means **not at all**. A film screening on
+	 * Sunday is not coming soon; it is here. Reading the criterion the other way
+	 * — filing such a film under both terms — leaves the phrase "coming soon"
+	 * doing no work, and puts a film a visitor can buy a ticket for right now
+	 * into the listing of things they cannot.
+	 *
+	 * So the two listings are mutually exclusive by construction, and what this
+	 * criterion is really about is that the planned half must not corrupt the
+	 * on-sale half: the film keeps its place in the current programme, with the
+	 * dates that can actually be bought.
 	 */
-	public function test_a_film_showing_now_with_more_to_come_is_in_both_listings(): void {
+	public function test_a_film_showing_now_is_not_also_coming_soon(): void {
 		$this->announce();
 		$this->arrange_programme(
 			array(
@@ -250,13 +257,83 @@ final class ComingSoonTest extends TestCase {
 		);
 		$this->sync_at( self::RUN_AT );
 
-		$listings = $this->listings( $this->film_record( 'film-cook' ) );
-
-		sort( $listings );
-
 		$this->assertSame(
-			array( ContentModel::COMING_SOON, ContentModel::NOW_SHOWING ),
-			$listings
+			array( ContentModel::NOW_SHOWING ),
+			$this->listings( $this->film_record( 'film-cook' ) )
+		);
+	}
+
+	/**
+	 * And its planned dates are held back with it, everywhere — off its own
+	 * card and out of the chronological listing.
+	 *
+	 * The rule is one rule, at the screening rather than at the film: a planned
+	 * screening is published only while nothing of that film is on sale. The
+	 * listing membership above then falls out of it rather than being decided a
+	 * second time somewhere else.
+	 *
+	 * The cost is real and was chosen knowingly. These screenings are inside the
+	 * horizon and are shown for every film that has nothing selling, so the
+	 * calendar has a gap where this film's future dates would be — and a season
+	 * already announced is retracted the moment its first date goes on sale.
+	 * What is bought is what is advertised.
+	 */
+	public function test_a_film_showing_now_holds_its_planned_dates_back(): void {
+		$this->announce();
+		$this->arrange_programme(
+			array(
+				$this->session_payload( array( 'Id' => 1 ) ),
+				$this->session_payload(
+					array(
+						'Id'       => 2,
+						'Status'   => 'Planned',
+						'SalesVia' => array( 'POS' ),
+						'starts'   => '2026-08-10T19:00:00',
+					)
+				),
+			),
+			array( $this->film_payload() )
+		);
+		$this->sync_at( self::RUN_AT );
+
+		$this->assertSame( 'publish', get_post_status( $this->session_record( 1 ) ) );
+		$this->assertSame( 'draft', get_post_status( $this->session_record( 2 ) ) );
+		$this->assertCount( 1, Screening::for_film( $this->film_record( 'film-cook' ) ) );
+	}
+
+	/**
+	 * Which is decided over the whole film rather than one screening at a time.
+	 * A planned date **earlier** than anything on sale is the case that would
+	 * slip through a rule written per screening, and it is the one that matters
+	 * most: a preview the cinema has not opened yet.
+	 */
+	public function test_a_planned_date_before_the_first_on_sale_one_is_held_back_too(): void {
+		$this->announce();
+		$this->arrange_programme(
+			array(
+				$this->session_payload(
+					array(
+						'Id'       => 1,
+						'Status'   => 'Planned',
+						'SalesVia' => array( 'POS' ),
+						'starts'   => '2026-08-02T16:30:00',
+					)
+				),
+				$this->session_payload(
+					array(
+						'Id'     => 2,
+						'starts' => '2026-08-06T19:00:00',
+					)
+				),
+			),
+			array( $this->film_payload() )
+		);
+		$this->sync_at( self::RUN_AT );
+
+		$this->assertSame( 'draft', get_post_status( $this->session_record( 1 ) ) );
+		$this->assertSame(
+			array( ContentModel::NOW_SHOWING ),
+			$this->listings( $this->film_record( 'film-cook' ) )
 		);
 	}
 
@@ -322,41 +399,22 @@ final class ComingSoonTest extends TestCase {
 	}
 
 	/**
-	 * A card's button and its headline time both skip past a screening nobody
-	 * can buy a ticket for, exactly as they skip a sold-out one — so a film
-	 * showing tomorrow does not advertise itself as unavailable because of a
-	 * preview screening the week before.
+	 * A coming-soon film's own card says when and offers nothing to press.
+	 *
+	 * There is no bookable screening to skip forward to — every one of them is
+	 * planned — so the headline time falls back to the soonest of them, which is
+	 * the truth, and the booking link stays empty. A card that headlined a date
+	 * and sold nothing is right here; one that offered a link would not be.
 	 */
-	public function test_a_cards_button_skips_a_planned_screening(): void {
+	public function test_a_coming_soon_card_says_when_and_sells_nothing(): void {
 		$this->announce();
-		$this->arrange_programme(
-			array(
-				$this->session_payload(
-					array(
-						'Id'       => 1,
-						'Status'   => 'Planned',
-						'SalesVia' => array( 'POS' ),
-						'starts'   => '2026-08-02T16:30:00',
-					)
-				),
-				$this->session_payload(
-					array(
-						'Id'     => 2,
-						'starts' => '2026-08-06T19:00:00',
-					)
-				),
-			),
-			array( $this->film_payload() )
-		);
+		$this->arrange_a_planned_season( '2026-08-04T19:00:00' );
 		$this->sync_at( self::RUN_AT );
 
 		$film = $this->film_record( 'film-cook' );
 
-		$this->assertSame(
-			'https://ticketing.example.test/purchase?session=2',
-			$this->bound( 'veezi-booking-url', $film )
-		);
-		$this->assertSame( 'August 6, 2026 7:00 pm', $this->bound( 'veezi-session-time', $film ) );
+		$this->assertSame( 'August 4, 2026 7:00 pm', $this->bound( 'veezi-session-time', $film ) );
+		$this->assertSame( '', $this->bound( 'veezi-booking-url', $film ) );
 	}
 
 	/**
@@ -428,8 +486,21 @@ final class ComingSoonTest extends TestCase {
 	 * something a visitor cannot see. A film on sale on Thursday with an
 	 * unannounced preview on Tuesday must not report Tuesday, and must not
 	 * count a screening nobody can find.
+	 *
+	 * True in both positions of the switch, and for two different reasons —
+	 * off, because nothing planned is published at all; on, because a film with
+	 * something on sale holds its planned dates back anyway. Asserted across
+	 * both so that neither reason can quietly stop being the case.
+	 *
+	 * @param bool $announcing Whether the cinema has asked for this.
+	 *
+	 * @dataProvider the_switch_either_way
 	 */
-	public function test_a_films_stored_facts_describe_what_is_published(): void {
+	public function test_a_films_stored_facts_describe_what_is_published( bool $announcing ): void {
+		if ( $announcing ) {
+			$this->announce();
+		}
+
 		$this->arrange_programme(
 			array(
 				$this->session_payload(
@@ -461,11 +532,11 @@ final class ComingSoonTest extends TestCase {
 	}
 
 	/**
-	 * And once the preview is announced, both facts take it in. The horizon is
-	 * the only thing that decides, so this is the same film and the same
-	 * programme with one setting moved.
+	 * A coming-soon film has the same two facts written down, from the dates it
+	 * is actually being advertised on — so a listing can order it and a card can
+	 * count it without knowing which listing it is in.
 	 */
-	public function test_announcing_a_screening_brings_it_into_those_facts(): void {
+	public function test_a_coming_soon_film_carries_the_same_facts(): void {
 		$this->announce();
 		$this->arrange_programme(
 			array(
@@ -479,8 +550,10 @@ final class ComingSoonTest extends TestCase {
 				),
 				$this->session_payload(
 					array(
-						'Id'     => 2,
-						'starts' => '2026-08-06T19:00:00',
+						'Id'       => 2,
+						'Status'   => 'Planned',
+						'SalesVia' => array( 'POS' ),
+						'starts'   => '2026-08-06T19:00:00',
 					)
 				),
 			),
@@ -524,6 +597,11 @@ final class ComingSoonTest extends TestCase {
 	 * and while the switch is off it cannot show a planned screening even by
 	 * accident, because there is no published record for it to find.
 	 *
+	 * Two films, because one would not do: a planned date only reaches the
+	 * listing while its own film has nothing on sale, so a single film carrying
+	 * both kinds of session would come out as one row whichever way the switch
+	 * is thrown, and prove nothing.
+	 *
 	 * @param bool $announcing Whether the cinema has asked for this.
 	 * @param int  $expected   How many screenings the listing comes back with.
 	 *
@@ -540,13 +618,23 @@ final class ComingSoonTest extends TestCase {
 				$this->session_payload(
 					array(
 						'Id'       => 2,
+						'FilmId'   => 'film-later',
+						'Title'    => 'The Second Feature',
 						'Status'   => 'Planned',
 						'SalesVia' => array( 'POS' ),
 						'starts'   => '2026-08-10T19:00:00',
 					)
 				),
 			),
-			array( $this->film_payload() )
+			array(
+				$this->film_payload(),
+				$this->film_payload(
+					array(
+						'Id'    => 'film-later',
+						'Title' => 'The Second Feature',
+					)
+				),
+			)
 		);
 		$this->sync_at( self::RUN_AT );
 
@@ -571,6 +659,16 @@ final class ComingSoonTest extends TestCase {
 		return array(
 			'off — only what is on sale' => array( false, 1 ),
 			'on — what is planned too'   => array( true, 2 ),
+		);
+	}
+
+	/**
+	 * @return array<string,array{0:bool}>
+	 */
+	public static function the_switch_either_way(): array {
+		return array(
+			'not announcing' => array( false ),
+			'announcing'     => array( true ),
 		);
 	}
 }

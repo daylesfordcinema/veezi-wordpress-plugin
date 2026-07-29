@@ -34,22 +34,38 @@ final class StarterTemplateTest extends TestCase {
 	 */
 	public static function templates(): array {
 		return array(
-			'the film card'   => array( 'film-card.json' ),
-			'the film page'   => array( 'film-page.json' ),
-			'the session row' => array( 'session-row.json' ),
+			'the film card'        => array( 'film-card.json' ),
+			'the coming soon card' => array( 'coming-soon-card.json' ),
+			'the film page'        => array( 'film-page.json' ),
+			'the session row'      => array( 'session-row.json' ),
 		);
 	}
 
 	/**
-	 * The ones that describe a film. The session row is a row of the
-	 * chronological listing — one screening of whatever happens to be on — so
-	 * it carries neither a poster nor a list of times.
+	 * The ones that show a film's artwork. Not the session row, which is one
+	 * screening of whatever happens to be on, in a listing where nine posters
+	 * would be nine films' worth of scrolling before the first Saturday.
 	 *
 	 * @return array<string,array<int,string>>
 	 */
-	public static function film_templates(): array {
+	public static function templates_with_a_poster(): array {
 		$templates = self::templates();
 		unset( $templates['the session row'] );
+
+		return $templates;
+	}
+
+	/**
+	 * The ones that list a film's screenings. Not the coming soon card, which
+	 * deliberately shows none: those dates are planned rather than on sale, and
+	 * printing times a cinema has not committed to invites somebody to turn up
+	 * for one of them.
+	 *
+	 * @return array<string,array<int,string>>
+	 */
+	public static function templates_that_list_screenings(): array {
+		$templates = self::templates_with_a_poster();
+		unset( $templates['the coming soon card'] );
 
 		return $templates;
 	}
@@ -227,14 +243,14 @@ final class StarterTemplateTest extends TestCase {
 	 * be in both: the times under a card, and the times on the film's own page.
 	 *
 	 * @param        string $file Which template, by its file name.
-	 * @dataProvider film_templates
+	 * @dataProvider templates_that_list_screenings
 	 */
 	public function test_a_template_lists_its_sessions_with_the_plugins_widget( string $file ): void {
 		$this->assertContains( 'veezi-session-times', array_column( $this->elements_of( $file ), 'widgetType' ) );
 	}
 
 	/**
-	 * Both templates ask for the size ticket 04 registered, by the name that
+	 * All three ask for the size ticket 04 registered, by the name that
 	 * registered it — the card because a listing would otherwise serve the
 	 * full-resolution original nine times over, and the page because the
 	 * alternatives are worse: WordPress's own sizes are a site setting and can
@@ -242,7 +258,7 @@ final class StarterTemplateTest extends TestCase {
 	 * original rather than to nothing.
 	 *
 	 * @param        string $file Which template, by its file name.
-	 * @dataProvider film_templates
+	 * @dataProvider templates_with_a_poster
 	 */
 	public function test_a_template_asks_for_a_poster_at_card_size( string $file ): void {
 		$sizes = array();
@@ -255,6 +271,33 @@ final class StarterTemplateTest extends TestCase {
 
 		$this->assertSame( array( ContentModel::POSTER_SIZE ), $sizes );
 		$this->assertContains( ContentModel::POSTER_SIZE, get_intermediate_image_sizes() );
+	}
+
+	/**
+	 * What the coming soon card leaves out, which is the whole reason it is a
+	 * second file rather than the film card again.
+	 *
+	 * No session times, because a planned date can still move and printing one
+	 * invites somebody to turn up for it. And no button, because Elementor
+	 * renders a button whose link resolves to nothing as a button that goes
+	 * nowhere — rare on a Now Showing card, certain on this one.
+	 *
+	 * Asserted as absence, which is a thing tests are bad at holding on to: it
+	 * is one careless copy-paste from the film card away, and it would look
+	 * entirely reasonable in a diff.
+	 */
+	public function test_the_coming_soon_card_offers_no_dates_and_nothing_to_press(): void {
+		$widgets = array_column( $this->elements_of( 'coming-soon-card.json' ), 'widgetType' );
+
+		$this->assertNotContains( 'veezi-session-times', $widgets );
+		$this->assertNotContains( 'button', $widgets );
+
+		// It still has to say what it is, or the listing is a wall of posters
+		// indistinguishable from the one next to it.
+		$this->assertContains(
+			'veezi-availability',
+			array_column( $this->bindings_in( 'coming-soon-card.json' ), 'name' )
+		);
 	}
 
 	/**

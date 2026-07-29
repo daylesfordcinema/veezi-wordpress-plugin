@@ -139,9 +139,19 @@ Three things follow that are worth knowing before the switch is moved:
 - **A planned screening can never be booked.** Veezi has no booking link for one
   and does not send it through the feed the links come from, so the Booking Link
   field resolves to nothing and the seats are not offered.
-- **A film can be in both listings at once.** One showing this week with more
-  dates announced for next month is in the current programme and in what is
-  coming, which is what each listing's reader is asking about.
+- **A film that has anything on sale is never coming soon**, and holds its
+  planned dates back for as long as that is true. A film screening on Sunday is
+  not coming soon, it is here — so it stays in the current programme, showing
+  the dates that can actually be bought, and its planned dates wait. The two
+  listings never hold the same film.
+
+That last one has a cost worth knowing before you turn the switch on: a season
+already published is **retracted** the moment its first date goes on sale, and
+the chronological listing carries a gap where that film's later dates would be
+while showing exactly those dates for a film that has nothing selling. It is a
+deliberate trade — what is bought is what is advertised, and a card mixing three
+purchasable evenings with two you cannot yet reach answers "when can I see this"
+worse than either half alone.
 
 ### Running it twice
 
@@ -383,20 +393,30 @@ what a sold-out row should be: still listed, still legible, nothing to click.
 Once **Settings → Veezi** has been asked to publish what is coming, the second
 listing is the first one again with one dropdown changed: a loop grid over
 **Films**, sorted by **Menu Order**, filtered to the **Coming Soon** term of the
-**Listings** taxonomy instead of **Now Showing**. There is no separate widget,
-no query to write, and `templates/film-card.json` is the same starting point —
-which is the whole reason the listings are terms rather than something only code
-could express.
+**Listings** taxonomy instead of **Now Showing**. There is no separate widget and
+no query to write — which is the whole reason the listings are terms rather than
+something only code could express.
 
-Two changes are worth making to the copied card. Take the **Book now** button
-out, because a film here has nothing on sale and the button would render with
-nowhere to go. And bind a heading to **Availability** if the card does not
-already have one: on these rows it reads "On sale soon", which is what stops the
-listing looking like a Now Showing grid that has lost its buttons.
+The loop item is its own template, though: `templates/coming-soon-card.json`,
+downloadable from the same screen. It is the film card with two things taken
+out, and both are deliberate.
 
-A film showing this week with more dates announced for next month appears in
-**both** listings, which is correct — each is answering a different question —
-but it does mean a page carrying both grids shows that film twice.
+**No session times.** These dates are planned rather than on sale, and the
+settings screen says plainly that a planned time can still move. Printing one
+invites somebody to turn up for it. The card says which film and that it is
+coming; the date arrives with the tickets.
+
+**No Book now button.** Not a styling preference — Elementor renders a button
+whose link resolves to nothing as a button that goes *nowhere*: styled,
+inviting, dead. On a Now Showing card that state is rare, because that listing
+only holds films on sale. Here it would be certain.
+
+What it keeps is a heading bound to **Availability**, which on these cards reads
+"On sale soon". Without it the listing is a wall of posters indistinguishable
+from the grid above it.
+
+The two grids never hold the same film, so a page carrying both shows nothing
+twice — see the retraction note above for what that costs.
 
 ### A film page to start from
 

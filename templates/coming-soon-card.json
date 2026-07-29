@@ -1,0 +1,125 @@
+{
+ "version": "0.4",
+ "title": "Veezi coming soon card",
+ "type": "container",
+ "page_settings": [],
+ "content": [
+  {
+   "id": "vzsoon10",
+   "elType": "container",
+   "isInner": false,
+   "settings": {
+    "content_width": "full",
+    "flex_direction": "column",
+    "flex_gap": {
+     "unit": "px",
+     "size": 16,
+     "column": "16",
+     "row": "16",
+     "isLinked": true
+    }
+   },
+   "elements": [
+    {
+     "id": "vzsoon20",
+     "elType": "widget",
+     "widgetType": "image",
+     "settings": {
+      "image": {
+       "url": "",
+       "id": ""
+      },
+      "image_size": "veezi-poster",
+      "__dynamic__": {
+       "image": "[elementor-tag id=\"vzsoon20\" name=\"veezi-poster\" settings=\"%7B%7D\"]"
+      }
+     },
+     "elements": []
+    },
+    {
+     "id": "vzsoon30",
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Film title",
+      "header_size": "h3",
+      "__dynamic__": {
+       "title": "[elementor-tag id=\"vzsoon30\" name=\"post-title\" settings=\"%7B%7D\"]"
+      }
+     },
+     "elements": []
+    },
+    {
+     "id": "vzsoon40",
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "row",
+      "flex_gap": {
+       "unit": "px",
+       "size": 12,
+       "column": "12",
+       "row": "12",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "id": "vzsoon41",
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "PG",
+        "header_size": "p",
+        "__dynamic__": {
+         "title": "[elementor-tag id=\"vzsoon41\" name=\"veezi-classification\" settings=\"%7B%7D\"]"
+        }
+       },
+       "elements": []
+      },
+      {
+       "id": "vzsoon42",
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "100 min",
+        "header_size": "p",
+        "__dynamic__": {
+         "title": "[elementor-tag id=\"vzsoon42\" name=\"veezi-runtime\" settings=\"%7B%22after%22%3A%22+min%22%7D\"]"
+        }
+       },
+       "elements": []
+      },
+      {
+       "id": "vzsoon43",
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Drama",
+        "header_size": "p",
+        "__dynamic__": {
+         "title": "[elementor-tag id=\"vzsoon43\" name=\"veezi-genre\" settings=\"%7B%7D\"]"
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "id": "vzsoon50",
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "On sale soon",
+      "header_size": "p",
+      "__dynamic__": {
+       "title": "[elementor-tag id=\"vzsoon50\" name=\"veezi-availability\" settings=\"%7B%7D\"]"
+      }
+     },
+     "elements": []
+    }
+   ]
+  }
+ ]
+}

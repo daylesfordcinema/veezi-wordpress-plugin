@@ -64,10 +64,16 @@ Against a site with the programme synced and at least one film screening.
 
 - [ ] **A Coming Soon grid holds what has been announced, and only that.** With
       **Publish what is coming** on at Settings → Veezi, copy the Now Showing
-      grid and switch its Listings term to **Coming Soon**. It holds the films
-      with planned screenings inside the horizon and no others — nothing on sale
-      only, and nothing beyond the horizon. Which term a grid filters by is
+      grid, switch its Listings term to **Coming Soon** and its loop item to
+      `templates/coming-soon-card.json`. It holds the films with planned
+      screenings inside the horizon and no others — **nothing that is already on
+      sale**, and nothing beyond the horizon. Which term a grid filters by is
       Pro's query control; that the terms are right is `ComingSoonTest`.
+
+- [ ] **No card in it offers a date or a button.** Every card is poster, title,
+      details and "On sale soon". A button here would render with nowhere to go
+      and a date here is one the cinema has not committed to, so seeing either
+      means the loop item is still the Now Showing card.
 
 - [ ] **Switching it off empties that grid again.** Turn the setting off and
       **Sync now**. The grid renders nothing, and a film that had only ever been
@@ -83,7 +89,7 @@ Against a site with the programme synced and at least one film screening.
       booking link resolves to nothing, and nothing on the page is an error or
       an empty player.
 
-- [ ] **All three templates import cleanly.** From a standing start — Templates
+- [ ] **All four templates import cleanly.** From a standing start — Templates
       → Saved Templates → Import — with no notice about a missing widget. A
       template referring to a widget this version no longer registers imports
       silently and renders nothing.

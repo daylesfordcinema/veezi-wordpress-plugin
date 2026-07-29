@@ -39,9 +39,10 @@ final class SettingsPage {
 	public const SYNC_ACTION  = 'veezi_sync_now';
 
 	/** The starter templates, relative to the plugin's main file. */
-	public const FILM_CARD   = 'templates/film-card.json';
-	public const FILM_PAGE   = 'templates/film-page.json';
-	public const SESSION_ROW = 'templates/session-row.json';
+	public const FILM_CARD        = 'templates/film-card.json';
+	public const COMING_SOON_CARD = 'templates/coming-soon-card.json';
+	public const FILM_PAGE        = 'templates/film-page.json';
+	public const SESSION_ROW      = 'templates/session-row.json';
 
 	/**
 	 * What the button just pressed did waits here for the redirect that follows
@@ -431,6 +432,12 @@ final class SettingsPage {
 			self::FILM_CARD,
 			__( 'Download the film card', 'veezi-wordpress-plugin' ),
 			__( 'One film in a listing: poster, title, details, session times and a booking button. Use it as the loop item of a Now Showing grid.', 'veezi-wordpress-plugin' )
+		);
+
+		self::render_starter_template(
+			self::COMING_SOON_CARD,
+			__( 'Download the coming soon card', 'veezi-wordpress-plugin' ),
+			__( 'The same card for a film nobody can book yet: poster, title, details and “On sale soon”. No times and no button, because a planned date can still move and a button here would have nowhere to go.', 'veezi-wordpress-plugin' )
 		);
 
 		self::render_starter_template(

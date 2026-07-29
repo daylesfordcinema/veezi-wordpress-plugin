@@ -176,6 +176,7 @@ final class SettingsPageTest extends TestCase {
 		$html = $this->render( array( $this->page, 'render' ) );
 
 		$this->assertStringContainsString( SettingsPage::FILM_CARD, $html );
+		$this->assertStringContainsString( SettingsPage::COMING_SOON_CARD, $html );
 		$this->assertStringContainsString( SettingsPage::SESSION_ROW, $html );
 		$this->assertStringContainsString( SettingsPage::FILM_PAGE, $html );
 		$this->assertStringContainsString( 'Saved Templates', $html );
