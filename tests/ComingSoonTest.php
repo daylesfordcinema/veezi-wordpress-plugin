@@ -420,6 +420,105 @@ final class ComingSoonTest extends TestCase {
 	}
 
 	/**
+	 * Criterion: when off, no planned content is exposed in any query.
+	 *
+	 * The two facts the sync denormalises onto a film — when it next screens
+	 * and how many screenings are left — are read by listings rather than
+	 * rendered, which is exactly why they are easy to leave describing
+	 * something a visitor cannot see. A film on sale on Thursday with an
+	 * unannounced preview on Tuesday must not report Tuesday, and must not
+	 * count a screening nobody can find.
+	 */
+	public function test_a_films_stored_facts_describe_what_is_published(): void {
+		$this->arrange_programme(
+			array(
+				$this->session_payload(
+					array(
+						'Id'       => 1,
+						'Status'   => 'Planned',
+						'SalesVia' => array( 'POS' ),
+						'starts'   => '2026-08-04T19:00:00',
+					)
+				),
+				$this->session_payload(
+					array(
+						'Id'     => 2,
+						'starts' => '2026-08-06T19:00:00',
+					)
+				),
+			),
+			array( $this->film_payload() )
+		);
+		$this->sync_at( self::RUN_AT );
+
+		$film = $this->film_record( 'film-cook' );
+
+		$this->assertSame( '1', get_post_meta( $film, ContentModel::FILM_SESSION_COUNT, true ) );
+		$this->assertSame(
+			'2026-08-06 09:00',
+			gmdate( 'Y-m-d H:i', (int) get_post_meta( $film, ContentModel::FILM_NEXT_SCREENING, true ) )
+		);
+	}
+
+	/**
+	 * And once the preview is announced, both facts take it in. The horizon is
+	 * the only thing that decides, so this is the same film and the same
+	 * programme with one setting moved.
+	 */
+	public function test_announcing_a_screening_brings_it_into_those_facts(): void {
+		$this->announce();
+		$this->arrange_programme(
+			array(
+				$this->session_payload(
+					array(
+						'Id'       => 1,
+						'Status'   => 'Planned',
+						'SalesVia' => array( 'POS' ),
+						'starts'   => '2026-08-04T19:00:00',
+					)
+				),
+				$this->session_payload(
+					array(
+						'Id'     => 2,
+						'starts' => '2026-08-06T19:00:00',
+					)
+				),
+			),
+			array( $this->film_payload() )
+		);
+		$this->sync_at( self::RUN_AT );
+
+		$film = $this->film_record( 'film-cook' );
+
+		$this->assertSame( '2', get_post_meta( $film, ContentModel::FILM_SESSION_COUNT, true ) );
+		$this->assertSame(
+			'2026-08-04 09:00',
+			gmdate( 'Y-m-d H:i', (int) get_post_meta( $film, ContentModel::FILM_NEXT_SCREENING, true ) )
+		);
+	}
+
+	/**
+	 * A film announced and then dropped from the schedule altogether is an
+	 * announcement of something that is not happening. Veezi changing its mind
+	 * has to retract it as surely as the cinema changing the setting does — and
+	 * the sweep that handles a film leaving the schedule deliberately never
+	 * un-publishes one, because ticket 08 needs it not to.
+	 */
+	public function test_a_film_announced_and_then_dropped_comes_down_again(): void {
+		$this->announce();
+		$this->arrange_a_planned_season();
+		$this->sync_at( self::RUN_AT );
+
+		$film = $this->film_record( 'film-cook' );
+		$this->assertSame( 'publish', get_post_status( $film ) );
+
+		$this->arrange_programme( array(), array() );
+		$this->sync_at( self::RUN_AT );
+
+		$this->assertSame( 'draft', get_post_status( $film ) );
+	}
+
+	/**
 	 * The chronological listing is a query over sessions with nothing
 	 * configured, so it follows this switch without anybody rebuilding it —
 	 * and while the switch is off it cannot show a planned screening even by

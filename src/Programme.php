@@ -41,18 +41,37 @@ defined( 'ABSPATH' ) || exit;
 final class Programme {
 
 	/**
-	 * How many screenings each film has left.
+	 * How many screenings each film has left that a visitor can find.
+	 *
+	 * Published ones only, which is the same distinction ticket 05 drew when it
+	 * stopped counting screenings that had been and gone: a card reading "5
+	 * sessions" beside three dates is a lie a visitor can check. Now that some
+	 * screenings are deliberately held back, this is the field that would tell
+	 * them how many.
 	 *
 	 * @var array<string,int>
 	 */
 	private readonly array $remaining;
 
 	/**
-	 * When each film next screens.
+	 * When each film next screens, of the screenings a visitor can find.
+	 *
+	 * Absent for a film with none, which is a film nothing is published about.
 	 *
 	 * @var array<string,DateTimeImmutable>
 	 */
 	private readonly array $soonest;
+
+	/**
+	 * The same, counting every screening whether or not it is published.
+	 *
+	 * Only ever used to order the films, and only as a fallback: a film with
+	 * nothing published still has to sort somewhere, and it cannot sort by a
+	 * date it does not have. Never written down and never shown.
+	 *
+	 * @var array<string,DateTimeImmutable>
+	 */
+	private readonly array $scheduled;
 
 	/**
 	 * Which films still have something on sale.
@@ -88,6 +107,7 @@ final class Programme {
 	) {
 		$remaining = array();
 		$soonest   = array();
+		$scheduled = array();
 		$selling   = array();
 		$announced = array();
 
@@ -97,9 +117,18 @@ final class Programme {
 		foreach ( $sessions as $session ) {
 			$film_id = $session->film_id;
 
-			$remaining[ $film_id ] = ( $remaining[ $film_id ] ?? 0 ) + 1;
 			$selling[ $film_id ]   = ( $selling[ $film_id ] ?? false ) || $session->on_sale;
 			$announced[ $film_id ] = ( $announced[ $film_id ] ?? false ) || $this->is_announced( $session );
+
+			if ( ! isset( $scheduled[ $film_id ] ) || $session->starts_at < $scheduled[ $film_id ] ) {
+				$scheduled[ $film_id ] = $session->starts_at;
+			}
+
+			if ( ! $this->is_published( $session ) ) {
+				continue;
+			}
+
+			$remaining[ $film_id ] = ( $remaining[ $film_id ] ?? 0 ) + 1;
 
 			if ( ! isset( $soonest[ $film_id ] ) || $session->starts_at < $soonest[ $film_id ] ) {
 				$soonest[ $film_id ] = $session->starts_at;
@@ -108,14 +137,19 @@ final class Programme {
 
 		$this->remaining = $remaining;
 		$this->soonest   = $soonest;
+		$this->scheduled = $scheduled;
 		$this->selling   = $selling;
 		$this->announced = $announced;
 
-		// Every film here has at least one session — that is what put it here.
+		// Every film here has at least one session — that is what put it here —
+		// but not necessarily a published one, so the order falls back to when
+		// it is scheduled rather than to when it is showing.
+		$position = static fn ( Film $film ): DateTimeImmutable => $soonest[ $film->id ] ?? $scheduled[ $film->id ];
+
 		uasort(
 			$films,
-			static function ( Film $a, Film $b ) use ( $soonest ): int {
-				$order = $soonest[ $a->id ] <=> $soonest[ $b->id ];
+			static function ( Film $a, Film $b ) use ( $position ): int {
+				$order = $position( $a ) <=> $position( $b );
 
 				// Two films can start at the same minute on different screens.
 				// Falling back to the identifier keeps the order stable rather
@@ -244,7 +278,8 @@ final class Programme {
 	}
 
 	/**
-	 * When this film next screens, whether or not it is selling yet.
+	 * When this film next screens, whether or not it is selling yet — of the
+	 * screenings a visitor can find. Null for a film nothing is published about.
 	 *
 	 * Kept on the film record so a listing can show it without asking a second
 	 * question of the database for every row. A screening already under way

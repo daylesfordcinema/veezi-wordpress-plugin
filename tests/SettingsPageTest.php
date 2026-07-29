@@ -200,6 +200,20 @@ final class SettingsPageTest extends TestCase {
 		$this->assertStringContainsString( 'can still move or be dropped', $html );
 	}
 
+	/**
+	 * Switching it off is a retraction, and a retraction that quietly takes an
+	 * hour is not what somebody pressing it has in mind. The screen says how
+	 * long, and names the button that makes it immediate.
+	 */
+	public function test_the_screen_says_when_the_switch_takes_effect(): void {
+		$this->become_administrator();
+
+		$this->assertStringContainsString(
+			'next sync',
+			$this->render( array( $this->page, 'render_coming_soon_intro' ) )
+		);
+	}
+
 	public function test_the_screen_offers_the_switch_and_the_horizon(): void {
 		$this->become_administrator();
 
