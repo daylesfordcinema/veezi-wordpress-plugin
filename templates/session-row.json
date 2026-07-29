@@ -1,0 +1,112 @@
+{
+ "version": "0.4",
+ "title": "Veezi session row",
+ "type": "container",
+ "page_settings": [],
+ "content": [
+  {
+   "id": "vzrow10",
+   "elType": "container",
+   "isInner": false,
+   "settings": {
+    "content_width": "full",
+    "flex_direction": "column",
+    "flex_gap": {
+     "unit": "px",
+     "size": 4,
+     "column": "4",
+     "row": "4",
+     "isLinked": true
+    }
+   },
+   "elements": [
+    {
+     "id": "vzrow20",
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Saturday 2 August",
+      "header_size": "h3",
+      "__dynamic__": {
+       "title": "[elementor-tag id=\"vzrow20\" name=\"veezi-session-time\" settings=\"%7B%22format%22%3A%22l+j+F%22%7D\"]"
+      }
+     },
+     "elements": []
+    },
+    {
+     "id": "vzrow30",
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "row",
+      "flex_align_items": "center",
+      "flex_gap": {
+       "unit": "px",
+       "size": 12,
+       "column": "12",
+       "row": "12",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "id": "vzrow40",
+       "elType": "widget",
+       "widgetType": "icon-list",
+       "settings": {
+        "icon_list": [
+         {
+          "_id": "vzrow41",
+          "text": "4:30 pm",
+          "link": {
+           "url": "",
+           "is_external": "",
+           "nofollow": "",
+           "custom_attributes": ""
+          },
+          "selected_icon": {
+           "value": "",
+           "library": ""
+          },
+          "__dynamic__": {
+           "text": "[elementor-tag id=\"vzrow41\" name=\"veezi-session-time\" settings=\"%7B%22format%22%3A%22g%3Ai+a%22%7D\"]",
+           "link": "[elementor-tag id=\"vzrow41\" name=\"veezi-booking-url\" settings=\"%7B%7D\"]"
+          }
+         }
+        ]
+       },
+       "elements": []
+      },
+      {
+       "id": "vzrow50",
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Film title",
+        "header_size": "h4",
+        "__dynamic__": {
+         "title": "[elementor-tag id=\"vzrow50\" name=\"veezi-film-title\" settings=\"%7B%7D\"]"
+        }
+       },
+       "elements": []
+      },
+      {
+       "id": "vzrow60",
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Few tickets left",
+        "header_size": "p",
+        "__dynamic__": {
+         "title": "[elementor-tag id=\"vzrow60\" name=\"veezi-availability\" settings=\"%7B%7D\"]"
+        }
+       },
+       "elements": []
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

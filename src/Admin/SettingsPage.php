@@ -38,8 +38,9 @@ final class SettingsPage {
 	public const SYNC_ACTION  = 'veezi_sync_now';
 
 	/** The starter templates, relative to the plugin's main file. */
-	public const FILM_CARD = 'templates/film-card.json';
-	public const FILM_PAGE = 'templates/film-page.json';
+	public const FILM_CARD   = 'templates/film-card.json';
+	public const FILM_PAGE   = 'templates/film-page.json';
+	public const SESSION_ROW = 'templates/session-row.json';
 
 	/**
 	 * What the button just pressed did waits here for the redirect that follows
@@ -343,6 +344,12 @@ final class SettingsPage {
 			self::FILM_CARD,
 			__( 'Download the film card', 'veezi-wordpress-plugin' ),
 			__( 'One film in a listing: poster, title, details, session times and a booking button. Use it as the loop item of a Now Showing grid.', 'veezi-wordpress-plugin' )
+		);
+
+		self::render_starter_template(
+			self::SESSION_ROW,
+			__( 'Download the session row', 'veezi-wordpress-plugin' ),
+			__( 'One screening in a chronological listing: the day it is on, the time, the film and a link to the seats. Use it as the loop item of a grid over Sessions.', 'veezi-wordpress-plugin' )
 		);
 
 		self::render_starter_template(

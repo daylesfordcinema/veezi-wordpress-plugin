@@ -407,12 +407,16 @@ abstract class TestCase extends WP_UnitTestCase {
 	protected function record_for( string $post_type, string $meta_key, string $upstream ): int {
 		$found = get_posts(
 			array(
-				'post_type'   => $post_type,
-				'post_status' => array_keys( get_post_stati() ),
-				'numberposts' => 1,
-				'fields'      => 'ids',
-				'meta_key'    => $meta_key,
-				'meta_value'  => $upstream,
+				'post_type'                   => $post_type,
+				'post_status'                 => array_keys( get_post_stati() ),
+				'numberposts'                 => 1,
+				'fields'                      => 'ids',
+				'meta_key'                    => $meta_key,
+				'meta_value'                  => $upstream,
+
+				// This is bookkeeping, not a listing: it asks what the sync
+				// wrote, so it wants the screening that is under way too.
+				ContentModel::EVERY_SCREENING => true,
 			)
 		);
 
@@ -552,13 +556,15 @@ abstract class TestCase extends WP_UnitTestCase {
 	protected function records( string $post_type, string $post_status = 'any' ): array {
 		return get_posts(
 			array(
-				'post_type'        => $post_type,
-				'post_status'      => $post_status,
-				'numberposts'      => -1,
-				'orderby'          => 'ID',
-				'order'            => 'ASC',
-				'fields'           => 'ids',
-				'suppress_filters' => false,
+				'post_type'                   => $post_type,
+				'post_status'                 => $post_status,
+				'numberposts'                 => -1,
+				'orderby'                     => 'ID',
+				'order'                       => 'ASC',
+				'fields'                      => 'ids',
+				'suppress_filters'            => false,
+
+				ContentModel::EVERY_SCREENING => true,
 			)
 		);
 	}

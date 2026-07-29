@@ -11,9 +11,9 @@ namespace Veezi\WordPress\Elementor\Widgets;
 
 use Elementor\Controls_Manager;
 use Elementor\Group_Control_Typography;
-use Elementor\Plugin as Elementor;
 use Elementor\Widget_Base;
 use Veezi\WordPress\ContentModel;
+use Veezi\WordPress\Elementor\InTheBuilder;
 use Veezi\WordPress\Presentation\Screening;
 use Veezi\WordPress\SyncLog;
 
@@ -33,6 +33,8 @@ defined( 'ABSPATH' ) || exit;
  * duplicated template behaves exactly like the one it was copied from.
  */
 final class SessionTimes extends Widget_Base {
+
+	use InTheBuilder;
 
 	public const STYLE = 'veezi-session-times';
 
@@ -339,7 +341,7 @@ final class SessionTimes extends Widget_Base {
 			esc_html( $screening->in_words( $format->time ) )
 		);
 
-		$badge = $this->badge( $screening, $format );
+		$badge = $screening->availability( $format->sold_out, $format->few_left );
 
 		if ( '' !== $badge ) {
 			$parts[] = sprintf( '<span class="veezi-session-times__badge">%s</span>', esc_html( $badge ) );
@@ -362,22 +364,6 @@ final class SessionTimes extends Widget_Base {
 			esc_url( $screening->booking_url ),
 			$inner
 		);
-	}
-
-	/**
-	 * @param Screening $screening One of this film's remaining screenings.
-	 * @param RowFormat $format    How the panel says a row should read.
-	 */
-	private function badge( Screening $screening, RowFormat $format ): string {
-		if ( $screening->sold_out ) {
-			return $format->sold_out;
-		}
-
-		if ( $screening->few_tickets_left ) {
-			return $format->few_left;
-		}
-
-		return '';
 	}
 
 	/**
@@ -423,16 +409,5 @@ final class SessionTimes extends Widget_Base {
 		}
 
 		return __( 'This film has no upcoming sessions.', 'veezi-wordpress-plugin' );
-	}
-
-	/**
-	 * Whether this is the builder rather than the site.
-	 *
-	 * Both halves are needed: the editor is the outer frame, and the widget
-	 * itself renders inside the preview it wraps.
-	 */
-	private function is_being_designed(): bool {
-		return Elementor::$instance->editor->is_edit_mode()
-			|| Elementor::$instance->preview->is_preview_mode();
 	}
 }

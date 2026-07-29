@@ -34,6 +34,21 @@ final class StarterTemplateTest extends TestCase {
 	 */
 	public static function templates(): array {
 		return array(
+			'the film card'   => array( 'film-card.json' ),
+			'the film page'   => array( 'film-page.json' ),
+			'the session row' => array( 'session-row.json' ),
+		);
+	}
+
+	/**
+	 * The two that describe a film. The session row is a row of the
+	 * chronological listing — one screening of whatever happens to be on — so
+	 * it carries neither a poster nor a list of times.
+	 *
+	 * @return array<string,array<int,string>>
+	 */
+	public static function film_templates(): array {
+		return array(
 			'the film card' => array( 'film-card.json' ),
 			'the film page' => array( 'film-page.json' ),
 		);
@@ -96,16 +111,46 @@ final class StarterTemplateTest extends TestCase {
 		$bindings = array();
 
 		foreach ( $this->elements_of( $file ) as $element ) {
-			foreach ( (array) ( $element['settings']['__dynamic__'] ?? array() ) as $reference ) {
+			$bindings = array_merge( $bindings, $this->bindings_under( (array) ( $element['settings'] ?? array() ) ) );
+		}
+
+		return $bindings;
+	}
+
+	/**
+	 * Gathered at whatever depth they sit, because a widget's settings are not
+	 * flat: the session row binds its time and its booking link inside a
+	 * repeater item, and each item carries a `__dynamic__` of its own. Reading
+	 * only the top level would leave the two names that matter most in that
+	 * template checked by nothing.
+	 *
+	 * @param  array<string,mixed> $settings One element's settings, or part of them.
+	 * @return array<int,array{name:string,settings:array<string,mixed>}>
+	 */
+	private function bindings_under( array $settings ): array {
+		$bindings = array();
+
+		foreach ( $settings as $key => $value ) {
+			if ( ! is_array( $value ) ) {
+				continue;
+			}
+
+			if ( '__dynamic__' !== $key ) {
+				$bindings = array_merge( $bindings, $this->bindings_under( $value ) );
+
+				continue;
+			}
+
+			foreach ( $value as $reference ) {
 				if ( ! preg_match( '/name="([^"]+)" settings="([^"]*)"/', (string) $reference, $matched ) ) {
 					continue;
 				}
 
-				$settings = json_decode( urldecode( $matched[2] ), true );
+				$decoded = json_decode( urldecode( $matched[2] ), true );
 
 				$bindings[] = array(
 					'name'     => $matched[1],
-					'settings' => is_array( $settings ) ? $settings : array(),
+					'settings' => is_array( $decoded ) ? $decoded : array(),
 				);
 			}
 		}
@@ -182,7 +227,7 @@ final class StarterTemplateTest extends TestCase {
 	 * be in both: the times under a card, and the times on the film's own page.
 	 *
 	 * @param        string $file Which template, by its file name.
-	 * @dataProvider templates
+	 * @dataProvider film_templates
 	 */
 	public function test_a_template_lists_its_sessions_with_the_plugins_widget( string $file ): void {
 		$this->assertContains( 'veezi-session-times', array_column( $this->elements_of( $file ), 'widgetType' ) );
@@ -197,7 +242,7 @@ final class StarterTemplateTest extends TestCase {
 	 * original rather than to nothing.
 	 *
 	 * @param        string $file Which template, by its file name.
-	 * @dataProvider templates
+	 * @dataProvider film_templates
 	 */
 	public function test_a_template_asks_for_a_poster_at_card_size( string $file ): void {
 		$sizes = array();
@@ -210,6 +255,72 @@ final class StarterTemplateTest extends TestCase {
 
 		$this->assertSame( array( ContentModel::POSTER_SIZE ), $sizes );
 		$this->assertContains( ContentModel::POSTER_SIZE, get_intermediate_image_sizes() );
+	}
+
+	/**
+	 * The session row's five, which are the whole of what a row of the
+	 * chronological listing shows: the day it belongs under, the time it
+	 * starts, what is on, whether there are seats, and where to buy one.
+	 *
+	 * The two times are the same tag asked for two different shapes — a date
+	 * for the heading and a clock time for the row.
+	 */
+	public function test_the_session_row_shows_a_day_a_time_a_film_and_a_way_in(): void {
+		$bindings = $this->bindings_in( 'session-row.json' );
+		$formats  = array();
+
+		foreach ( $bindings as $binding ) {
+			if ( 'veezi-session-time' === $binding['name'] ) {
+				$formats[] = (string) ( $binding['settings']['format'] ?? '' );
+			}
+		}
+
+		$this->assertSame( array( 'l j F', 'g:i a' ), $formats );
+		$this->assertContains( 'veezi-film-title', array_column( $bindings, 'name' ) );
+		$this->assertContains( 'veezi-availability', array_column( $bindings, 'name' ) );
+		$this->assertContains( 'veezi-booking-url', array_column( $bindings, 'name' ) );
+	}
+
+	/**
+	 * Criterion: the listing needs no widget of the plugin's.
+	 *
+	 * The card could not be built without one — a film's several times are a
+	 * loop inside a loop. A row is one screening, so every part of it is an
+	 * ordinary widget bound to a field, and the plugin's ongoing liability to
+	 * Elementor's widget API does not grow by this view existing.
+	 */
+	public function test_the_session_row_is_built_from_the_builders_own_widgets(): void {
+		$ours = array_filter(
+			array_column( $this->elements_of( 'session-row.json' ), 'widgetType' ),
+			static fn ( string $type ): bool => str_starts_with( $type, 'veezi-' )
+		);
+
+		$this->assertSame( array(), $ours );
+	}
+
+	/**
+	 * Criterion: a sold-out row presents no active booking link.
+	 *
+	 * The time is the link, and it is an icon list rather than a button because
+	 * of what each does with a binding that resolves to nothing. A button
+	 * renders anyway, styled and clickable and going nowhere. An icon list
+	 * renders the text with no anchor around it at all — which is exactly a
+	 * sold-out row: still listed, still legible, nothing to click.
+	 */
+	public function test_the_session_rows_booking_link_is_the_time_itself(): void {
+		$carrying = array();
+
+		foreach ( $this->elements_of( 'session-row.json' ) as $element ) {
+			foreach ( (array) ( $element['settings']['icon_list'] ?? array() ) as $item ) {
+				$bound = (array) ( $item['__dynamic__'] ?? array() );
+
+				if ( isset( $bound['link'] ) && isset( $bound['text'] ) ) {
+					$carrying[] = (string) $element['widgetType'];
+				}
+			}
+		}
+
+		$this->assertSame( array( 'icon-list' ), $carrying );
 	}
 
 	/**

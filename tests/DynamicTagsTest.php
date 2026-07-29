@@ -303,14 +303,17 @@ final class DynamicTagsTest extends TestCase {
 
 		$this->assertSame(
 			array(
-				'veezi-booking-url'    => 'Booking Link',
-				'veezi-cast-and-crew'  => 'Cast and Crew',
-				'veezi-classification' => 'Classification',
-				'veezi-genre'          => 'Genre',
-				'veezi-poster'         => 'Poster',
-				'veezi-runtime'        => 'Runtime (minutes)',
-				'veezi-session-time'   => 'Session Time',
-				'veezi-trailer-url'    => 'Trailer Link',
+				'veezi-availability'      => 'Availability',
+				'veezi-booking-url'       => 'Booking Link',
+				'veezi-cast-and-crew'     => 'Cast and Crew',
+				'veezi-classification'    => 'Classification',
+				'veezi-film-title'        => 'Film Title',
+				'veezi-genre'             => 'Genre',
+				'veezi-nothing-scheduled' => 'Nothing Scheduled',
+				'veezi-poster'            => 'Poster',
+				'veezi-runtime'           => 'Runtime (minutes)',
+				'veezi-session-time'      => 'Session Time',
+				'veezi-trailer-url'       => 'Trailer Link',
 			),
 			$titles
 		);

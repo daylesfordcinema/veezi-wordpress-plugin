@@ -390,17 +390,22 @@ final class Repository {
 	private function index( string $post_type, string $meta_key ): array {
 		$post_ids = get_posts(
 			array(
-				'post_type'        => $post_type,
+				'post_type'                   => $post_type,
 
 				// Every status by name rather than 'any', which quietly omits
 				// the trash. A trashed film found by nobody is a film the next
 				// sync creates all over again, leaving two.
-				'post_status'      => array_keys( get_post_stati() ),
-				'numberposts'      => -1,
-				'fields'           => 'ids',
-				'orderby'          => 'ID',
-				'order'            => 'ASC',
-				'suppress_filters' => false,
+				'post_status'                 => array_keys( get_post_stati() ),
+				'numberposts'                 => -1,
+				'fields'                      => 'ids',
+				'orderby'                     => 'ID',
+				'order'                       => 'ASC',
+				'suppress_filters'            => false,
+
+				// Including the screening that started twenty minutes ago,
+				// which a listing hides and this must not: a record the sync
+				// fails to find is one it creates all over again.
+				ContentModel::EVERY_SCREENING => true,
 			)
 		);
 

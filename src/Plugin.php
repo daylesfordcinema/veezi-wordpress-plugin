@@ -82,6 +82,7 @@ final class Plugin {
 		add_action( 'init', array( ContentModel::class, 'register' ) );
 		add_action( 'init', array( ContentModel::class, 'flush_rewrites_when_stale' ), 20 );
 		add_action( 'init', array( Schedule::class, 'ensure' ) );
+		add_action( 'pre_get_posts', array( ContentModel::class, 'hide_screenings_that_have_started' ) );
 		add_action( Schedule::HOOK, array( $this, 'sync_on_schedule' ) );
 		add_action( 'admin_init', array( $this->settings, 'register' ) );
 
