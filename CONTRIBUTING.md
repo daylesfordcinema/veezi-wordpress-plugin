@@ -230,6 +230,11 @@ directory and then cannot update itself. What stays out of the archive is
 declared in `.gitattributes`; pass `--worktree-attributes` to try a change to
 that file before committing it.
 
+Pushing the tag also **deploys** that archive to the live site, through a job in
+the same workflow. What that job checks, the secrets it reads, how to roll back,
+and how to install the archive by hand when CI itself is broken are all in
+[docs/deploying.md](docs/deploying.md).
+
 ## Licence
 
 GPL-2.0-or-later. See [LICENSE](LICENSE). Contributions are accepted under the
