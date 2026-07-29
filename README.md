@@ -113,8 +113,35 @@ using the record that was there all along rather than a second copy of it.
 
 Veezi distinguishes sessions that are on sale from those merely planned. Both are
 synced, but **planned sessions and the films known only from them are stored as
-drafts**: visible to an administrator, invisible to a visitor. Nothing publishes
-next month's programme before the cinema chooses to.
+drafts**: visible to an administrator, invisible to a visitor. Out of the box
+nothing publishes next month's programme, because a planned session is not an
+announcement — it is a row in a ticketing system, and it can still move.
+
+**Settings → Veezi** is where a cinema says otherwise, with two controls:
+
+| | |
+|---|---|
+| **Publish what is coming** | Off. Turning it on publishes planned screenings and files their films under a second listing, **Coming Soon**. |
+| **How far ahead** | 14 days. Whole days in the cinema's own timezone, so a fortnight reaches the end of the fourteenth day. |
+
+The horizon is the point of the pair. A cinema usually wants to advertise the
+next fortnight without publishing a quarter of forward planning, so anything
+scheduled beyond it stays a draft and publishes itself when the horizon reaches
+it — no second decision, and nothing to remember.
+
+Three things follow that are worth knowing before the switch is moved:
+
+- **It is reversible.** Switching it off on the next sync withdraws what it
+  published: the sessions go back to drafts, the films lose the Coming Soon
+  listing, and a film that has *only* ever been coming soon goes back to a draft
+  with them. A film that has been on sale keeps its page, because a link
+  somebody shared has to go on working — that promise outranks this one.
+- **A planned screening can never be booked.** Veezi has no booking link for one
+  and does not send it through the feed the links come from, so the Booking Link
+  field resolves to nothing and the seats are not offered.
+- **A film can be in both listings at once.** One showing this week with more
+  dates announced for next month is in the current programme and in what is
+  coming, which is what each listing's reader is asking about.
 
 ### Running it twice
 
@@ -260,12 +287,16 @@ from Settings → General. Left empty it is the site's own date and time, worked
 out afresh on every page load, so changing the site's format changes what a card
 says without waiting for a sync.
 
-**Availability** reads "Sold out" or "Few tickets left", in whatever words the
-panel is given, and **nothing at all** the rest of the time — a listing where
-every row carries a badge has no badge. Bind it to something you are content to
-see render empty. The numbers behind it never reach the site: Veezi reports
-seats sold and seats held on the same record, and the sync keeps the two flags
-and discards the rest, so a page showing this cannot leak a night's takings.
+**Availability** reads "Sold out", "Few tickets left" or "On sale soon", in
+whatever words the panel is given, and **nothing at all** the rest of the time —
+a listing where every row carries a badge has no badge. Bind it to something you
+are content to see render empty. The last of the three is only ever seen where
+the cinema has asked to publish what is coming, and it wins over the other two:
+Veezi goes on reporting sold-out and few-left on a screening nobody has been
+able to buy yet, and printing "Sold out" against one of those would be flatly
+untrue. The numbers behind it never reach the site: Veezi reports seats sold and
+seats held on the same record, and the sync keeps the two flags and discards the
+rest, so a page showing this cannot leak a night's takings.
 
 Three of them answer differently on a film and on a screening, and **Booking Link**
 deliberately skips past a sold-out screening to the next one that can still be
@@ -295,13 +326,14 @@ of its own, and only one.
 Drop **Session Times** into the card and it lists that film's remaining
 screenings, each linking to the seats for that particular screening. Controls
 cover what a row shows and how the times read: the time format, whether to name
-the day and in what form, how many to show, and the wording of the sold-out and
-nearly-sold-out badges. Times are worked out in the cinema's timezone, not the
-site's.
+the day and in what form, how many to show, and the wording of the three badges
+— sold out, nearly sold out, and not on sale yet. Times are worked out in the
+cinema's timezone, not the site's.
 
-A sold-out screening stays on the card, marked, with no link — somebody scanning
-the week needs to see that Saturday is gone, and a button landing on "no seats
-available" is a wasted trip.
+A screening nobody can book stays on the card, marked, with no link — somebody
+scanning the week needs to see that Saturday is gone, and a button landing on
+"no seats available" is a wasted trip. That covers all three: sold out, already
+started, and announced but not yet selling.
 
 ### A card to start from
 
@@ -345,6 +377,26 @@ booking link that resolves to nothing to a **button** and Elementor renders it
 anyway — styled, inviting, going nowhere. Bind it to an **icon list** item and
 Elementor renders the text with no anchor around it at all. Which is exactly
 what a sold-out row should be: still listed, still legible, nothing to click.
+
+### A Coming Soon listing
+
+Once **Settings → Veezi** has been asked to publish what is coming, the second
+listing is the first one again with one dropdown changed: a loop grid over
+**Films**, sorted by **Menu Order**, filtered to the **Coming Soon** term of the
+**Listings** taxonomy instead of **Now Showing**. There is no separate widget,
+no query to write, and `templates/film-card.json` is the same starting point —
+which is the whole reason the listings are terms rather than something only code
+could express.
+
+Two changes are worth making to the copied card. Take the **Book now** button
+out, because a film here has nothing on sale and the button would render with
+nowhere to go. And bind a heading to **Availability** if the card does not
+already have one: on these rows it reads "On sale soon", which is what stops the
+listing looking like a Now Showing grid that has lost its buttons.
+
+A film showing this week with more dates announced for next month appears in
+**both** listings, which is correct — each is answering a different question —
+but it does mean a page carrying both grids shows that film twice.
 
 ### A film page to start from
 

@@ -33,7 +33,10 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Sync {
 
-	public function __construct( private readonly Client $client ) {}
+	public function __construct(
+		private readonly Client $client,
+		private readonly Settings $settings = new Settings()
+	) {}
 
 	/**
 	 * Sync, unless one is already going.
@@ -97,7 +100,14 @@ final class Sync {
 
 		$zone = CinemaTimezone::resolve( $connection->timezone_identifier() );
 
-		$programme = Programme::assemble( $feeds['sessions'], $feeds['web_sessions'], $feeds['films'], $zone, $now );
+		$programme = Programme::assemble(
+			$feeds['sessions'],
+			$feeds['web_sessions'],
+			$feeds['films'],
+			$zone,
+			$now,
+			ComingSoon::from( $this->settings )
+		);
 
 		( new Repository( $zone ) )->store( $programme );
 

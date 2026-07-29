@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Veezi\WordPress\Admin;
 
+use Veezi\WordPress\ComingSoon;
 use Veezi\WordPress\ConnectionResult;
 use Veezi\WordPress\Plugin;
 use Veezi\WordPress\ResponseCache;
@@ -137,6 +138,82 @@ final class SettingsPage {
 			'veezi_connection',
 			array( 'label_for' => 'veezi-token' )
 		);
+
+		add_settings_section(
+			'veezi_coming_soon',
+			__( 'Coming soon', 'veezi-wordpress-plugin' ),
+			array( $this, 'render_coming_soon_intro' ),
+			self::MENU_SLUG
+		);
+
+		add_settings_field(
+			'veezi_coming_soon',
+			__( 'Publish what is coming', 'veezi-wordpress-plugin' ),
+			array( $this, 'render_coming_soon_field' ),
+			self::MENU_SLUG,
+			'veezi_coming_soon',
+			array( 'label_for' => 'veezi-coming-soon' )
+		);
+
+		add_settings_field(
+			'veezi_coming_soon_days',
+			__( 'How far ahead', 'veezi-wordpress-plugin' ),
+			array( $this, 'render_coming_soon_days_field' ),
+			self::MENU_SLUG,
+			'veezi_coming_soon',
+			array( 'label_for' => 'veezi-coming-soon-days' )
+		);
+	}
+
+	/**
+	 * The two things somebody should weigh before turning this on.
+	 *
+	 * Both are stated plainly rather than hinted at, because the person reading
+	 * this screen is not the person who will hear about it if a season goes
+	 * public a fortnight early. The first is that switching it on is itself an
+	 * announcement; the second is that a planned time is not a promise, and the
+	 * site will follow it wherever Veezi moves it.
+	 */
+	public function render_coming_soon_intro(): void {
+		echo '<p>';
+		esc_html_e(
+			'Veezi holds next season as well as this week. Turning this on publishes it: films the cinema has scheduled but not yet put on sale appear on the site, in a Coming Soon listing of their own, with no booking link until they go on sale.',
+			'veezi-wordpress-plugin'
+		);
+		echo '</p><p>';
+		esc_html_e(
+			'This publishes programming that may not have been announced, so switching it on is an announcement. And a planned time is not a commitment — it can still move or be dropped, and the site follows it at the next sync.',
+			'veezi-wordpress-plugin'
+		);
+		echo '</p>';
+	}
+
+	public function render_coming_soon_field(): void {
+		printf(
+			'<label><input type="checkbox" id="veezi-coming-soon" name="%1$s[%2$s]" value="1"%3$s /> %4$s</label>',
+			esc_attr( Settings::OPTION ),
+			esc_attr( Settings::COMING_SOON_FIELD ),
+			checked( $this->plugin->settings()->coming_soon(), true, false ),
+			esc_html__( 'Publish films that are scheduled but not yet on sale', 'veezi-wordpress-plugin' )
+		);
+	}
+
+	public function render_coming_soon_days_field(): void {
+		printf(
+			'<input type="number" id="veezi-coming-soon-days" name="%1$s[%2$s]" value="%3$s" class="small-text" min="0" max="%4$s" step="1" /> %5$s',
+			esc_attr( Settings::OPTION ),
+			esc_attr( Settings::COMING_SOON_DAYS_FIELD ),
+			esc_attr( (string) $this->plugin->settings()->coming_soon_days() ),
+			esc_attr( (string) ComingSoon::MOST_DAYS ),
+			esc_html__( 'days', 'veezi-wordpress-plugin' )
+		);
+
+		echo '<p class="description">';
+		esc_html_e(
+			'Counted in whole days in the cinema’s own timezone, so a fortnight reaches the end of the fourteenth day. Anything scheduled beyond it stays off the site.',
+			'veezi-wordpress-plugin'
+		);
+		echo '</p>';
 	}
 
 	public function render_section_intro(): void {

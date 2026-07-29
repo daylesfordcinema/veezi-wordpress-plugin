@@ -24,9 +24,11 @@ defined( 'ABSPATH' ) || exit;
  * of a Veezi identifier — and collapsing them would tie what a page can show to
  * the shape of somebody else's API.
  *
- * Only published screenings are ever found here. A planned one is programming
- * the cinema may not have announced, and ticket 09 is where deciding to show it
- * belongs; until then the answer is no, at the only place that has to be right.
+ * Only published screenings are ever found here. Whether a planned one is
+ * published at all is the cinema's decision, made once on the settings screen
+ * and applied by the sync — see {@see \Veezi\WordPress\ComingSoon}. What this
+ * knows about a planned screening is the part that is true either way: nobody
+ * can buy a ticket for it yet, and saying so is better than saying nothing.
  */
 final class Screening {
 
@@ -35,7 +37,8 @@ final class Screening {
 		public readonly int $starts_at,
 		public readonly string $booking_url,
 		public readonly bool $sold_out,
-		public readonly bool $few_tickets_left
+		public readonly bool $few_tickets_left,
+		public readonly bool $planned
 	) {}
 
 	/**
@@ -53,7 +56,8 @@ final class Screening {
 			(int) $starts_at,
 			(string) get_post_meta( $post_id, ContentModel::SESSION_BOOKING, true ),
 			'' !== (string) get_post_meta( $post_id, ContentModel::SESSION_SOLD_OUT, true ),
-			'' !== (string) get_post_meta( $post_id, ContentModel::SESSION_FEW_LEFT, true )
+			'' !== (string) get_post_meta( $post_id, ContentModel::SESSION_FEW_LEFT, true ),
+			ContentModel::STATUS_PLANNED === (string) get_post_meta( $post_id, ContentModel::SESSION_STATUS, true )
 		);
 	}
 
@@ -184,20 +188,26 @@ final class Screening {
 	/**
 	 * What to say about the seats, or nothing when there is nothing to say.
 	 *
-	 * The words are the caller's because they are the designer's: one panel
-	 * calls it "Sold out" and the next "Full house", and neither should need a
-	 * translation file. Sold out wins when Veezi sends both, which it does —
-	 * it is the one that stops somebody making the trip.
+	 * Not on sale yet comes first, because it is the only one of the three that
+	 * is a fact about the screening rather than about its seats — Veezi keeps
+	 * reporting sold-out and few-left on a planned session, where they describe
+	 * a sale that has not opened, and printing "Sold out" against something
+	 * nobody has been able to buy would be flatly untrue. Then sold out, which
+	 * wins over nearly-gone when Veezi sends both, because it is the one that
+	 * stops somebody making the trip.
 	 *
-	 * @param string $sold_out What a screening with no seats reads.
-	 * @param string $few_left What a screening nearly gone reads.
+	 * @param Badges $words How this site says each of the three.
 	 */
-	public function availability( string $sold_out, string $few_left ): string {
-		if ( $this->sold_out ) {
-			return $sold_out;
+	public function availability( Badges $words ): string {
+		if ( $this->planned ) {
+			return $words->on_sale_soon;
 		}
 
-		return $this->few_tickets_left ? $few_left : '';
+		if ( $this->sold_out ) {
+			return $words->sold_out;
+		}
+
+		return $this->few_tickets_left ? $words->few_left : '';
 	}
 
 	/**
@@ -213,12 +223,18 @@ final class Screening {
 	/**
 	 * Whether a visitor can still buy a ticket for this one.
 	 *
-	 * Three ways to answer no. Sold out is the obvious one. The second is a
+	 * Four ways to answer no. Sold out is the obvious one. The second is a
 	 * screening with no link at all, which is either box-office-only or one
 	 * whose sales have closed — and in both cases there is nothing useful to
 	 * point at.
 	 *
-	 * The third is a screening that has begun. Veezi withdraws the link itself,
+	 * The third is a screening that is only planned. Upstream has no link for
+	 * one and never sends it through the feed the links come from, so this is
+	 * belt and braces — but it is the sort of belt worth wearing, because the
+	 * failure it guards against is a visitor being sold a ticket for a date the
+	 * cinema has not committed to.
+	 *
+	 * The fourth is a screening that has begun. Veezi withdraws the link itself,
 	 * its websession feed being future-only, but not until the next sync — so
 	 * for as long as an hour a card would go on selling something the visitor
 	 * has already missed. The row stays, which is ticket 05's point; the offer
@@ -227,6 +243,9 @@ final class Screening {
 	 * one that can still be acted on.
 	 */
 	public function is_bookable(): bool {
-		return ! $this->sold_out && '' !== $this->booking_url && ! $this->has_started();
+		return ! $this->sold_out
+			&& ! $this->planned
+			&& '' !== $this->booking_url
+			&& ! $this->has_started();
 	}
 }

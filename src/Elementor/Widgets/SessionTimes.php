@@ -151,6 +151,17 @@ final class SessionTimes extends Widget_Base {
 			)
 		);
 
+		$this->add_control(
+			'on_sale_soon_text',
+			array(
+				'label'       => esc_html__( 'Not on sale yet reads', 'veezi-wordpress-plugin' ),
+				'type'        => Controls_Manager::TEXT,
+				'default'     => __( 'On sale soon', 'veezi-wordpress-plugin' ),
+				'description' => esc_html__( 'Only ever seen where Settings → Veezi has been asked to publish what is coming.', 'veezi-wordpress-plugin' ),
+				'ai'          => array( 'active' => false ),
+			)
+		);
+
 		$this->end_controls_section();
 
 		$this->register_style_controls();
@@ -341,7 +352,7 @@ final class SessionTimes extends Widget_Base {
 			esc_html( $screening->in_words( $format->time ) )
 		);
 
-		$badge = $screening->availability( $format->sold_out, $format->few_left );
+		$badge = $screening->availability( $format->badges );
 
 		if ( '' !== $badge ) {
 			$parts[] = sprintf( '<span class="veezi-session-times__badge">%s</span>', esc_html( $badge ) );

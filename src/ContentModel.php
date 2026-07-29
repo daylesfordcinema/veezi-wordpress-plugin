@@ -39,6 +39,7 @@ final class ContentModel {
 	public const LISTING        = 'veezi_listing';
 
 	public const NOW_SHOWING = 'now-showing';
+	public const COMING_SOON = 'coming-soon';
 
 	/*
 	 * The fields the sync maintains.
@@ -72,6 +73,18 @@ final class ContentModel {
 	public const FILM_SESSION_COUNT  = '_veezi_session_count';
 
 	/**
+	 * Set while the only reason this film has a published page is that
+	 * coming-soon publication is switched on.
+	 *
+	 * Without it there is no telling the two published films apart, and they
+	 * have opposite futures: one has been on sale and keeps its address for
+	 * good, and the other is an announcement the cinema must be able to take
+	 * back by moving a switch. The mark is cleared the moment a ticket can be
+	 * bought, and never set again.
+	 */
+	public const FILM_COMING_SOON_ONLY = '_veezi_coming_soon_only';
+
+	/**
 	 * Which Veezi media a poster was copied from. Kept on the attachment rather
 	 * than the film, because it describes where those bytes came from and stays
 	 * true however the media is reused afterwards.
@@ -86,8 +99,18 @@ final class ContentModel {
 	public const SESSION_ENDS_TEXT   = '_veezi_ends_at_text';
 	public const SESSION_BOOKING     = '_veezi_booking_url';
 	public const SESSION_STATUS      = '_veezi_status';
-	public const SESSION_SOLD_OUT    = '_veezi_sold_out';
-	public const SESSION_FEW_LEFT    = '_veezi_few_tickets_left';
+
+	/*
+	 * The two values that field takes. Selling, or scheduled and not selling
+	 * yet — which is a different thing from sold out, and reads differently on
+	 * the page.
+	 */
+
+	public const STATUS_ON_SALE = 'open';
+	public const STATUS_PLANNED = 'planned';
+
+	public const SESSION_SOLD_OUT = '_veezi_sold_out';
+	public const SESSION_FEW_LEFT = '_veezi_few_tickets_left';
 
 	/**
 	 * The size a card should ask a poster for. Not a field — an image size, and
@@ -372,10 +395,10 @@ final class ContentModel {
 	}
 
 	private static function listing_name( string $slug ): string {
-		if ( self::NOW_SHOWING === $slug ) {
-			return __( 'Now Showing', 'veezi-wordpress-plugin' );
-		}
-
-		return $slug;
+		return match ( $slug ) {
+			self::NOW_SHOWING => __( 'Now Showing', 'veezi-wordpress-plugin' ),
+			self::COMING_SOON => __( 'Coming Soon', 'veezi-wordpress-plugin' ),
+			default           => $slug,
+		};
 	}
 }

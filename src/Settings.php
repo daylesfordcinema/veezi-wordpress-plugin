@@ -27,6 +27,12 @@ final class Settings {
 	/** Checkbox asking for the stored token to be forgotten. Never persisted. */
 	public const DELETE_TOKEN_FIELD = 'delete_token';
 
+	/** Whether to publish programming that is scheduled but not on sale. */
+	public const COMING_SOON_FIELD = 'coming_soon';
+
+	/** How far ahead that reaches, in the cinema's own days. */
+	public const COMING_SOON_DAYS_FIELD = 'coming_soon_days';
+
 	/**
 	 * Matches anything a token may *not* contain, for stripping.
 	 *
@@ -39,8 +45,16 @@ final class Settings {
 	 */
 	private const DISALLOWED_TOKEN_CHARACTERS = '/[^A-Za-z0-9._~+\/=-]/';
 
+	/**
+	 * Coming-soon publication is off here, and that is the whole of the
+	 * decision: planned programming has not necessarily been announced, so a
+	 * site that has installed the plugin and done nothing else must not be
+	 * publishing it. See {@see ComingSoon}.
+	 */
 	private const DEFAULTS = array(
-		'token' => '',
+		'token'                      => '',
+		self::COMING_SOON_FIELD      => false,
+		self::COMING_SOON_DAYS_FIELD => ComingSoon::DEFAULT_DAYS,
 	);
 
 	/**
@@ -75,6 +89,14 @@ final class Settings {
 		return (string) $this->all()['token'];
 	}
 
+	public function coming_soon(): bool {
+		return (bool) $this->all()[ self::COMING_SOON_FIELD ];
+	}
+
+	public function coming_soon_days(): int {
+		return ComingSoon::days_within_reason( $this->all()[ self::COMING_SOON_DAYS_FIELD ] );
+	}
+
 	/**
 	 * @param array<string,mixed> $values Merged over what is already stored.
 	 */
@@ -92,6 +114,14 @@ final class Settings {
 		if ( ! is_array( $input ) ) {
 			return $clean;
 		}
+
+		// Read before the token is, because an unticked checkbox is a key that
+		// is simply absent — so this cannot be skipped the way an empty token
+		// field is, and a save that also forgets the token must not lose it.
+		$clean[ self::COMING_SOON_FIELD ]      = ! empty( $input[ self::COMING_SOON_FIELD ] );
+		$clean[ self::COMING_SOON_DAYS_FIELD ] = ComingSoon::days_within_reason(
+			$input[ self::COMING_SOON_DAYS_FIELD ] ?? $clean[ self::COMING_SOON_DAYS_FIELD ]
+		);
 
 		if ( ! empty( $input[ self::DELETE_TOKEN_FIELD ] ) ) {
 			$clean['token'] = '';

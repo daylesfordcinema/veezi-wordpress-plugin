@@ -138,12 +138,11 @@ final class Fields {
 	/**
 	 * What the cinema is saying about the seats for this screening.
 	 *
-	 * @param int    $post_id  A film or a session record.
-	 * @param string $sold_out What a screening with no seats reads.
-	 * @param string $few_left What a screening nearly gone reads.
+	 * @param int    $post_id A film or a session record.
+	 * @param Badges $words   How this site says each of the three states.
 	 */
-	public static function availability( int $post_id, string $sold_out, string $few_left ): string {
-		return self::screening_for( $post_id )?->availability( $sold_out, $few_left ) ?? '';
+	public static function availability( int $post_id, Badges $words ): string {
+		return self::screening_for( $post_id )?->availability( $words ) ?? '';
 	}
 
 	/**
