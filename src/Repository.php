@@ -198,7 +198,17 @@ final class Repository {
 	private function keeps_its_page( int $post_id ): bool {
 		return 0 !== $post_id
 			&& 'publish' === get_post_status( $post_id )
-			&& '1' !== (string) get_post_meta( $post_id, ContentModel::FILM_COMING_SOON_ONLY, true );
+			&& ! $this->is_only_coming_soon( $post_id );
+	}
+
+	/**
+	 * Whether the mark is on this record — see
+	 * {@see ContentModel::FILM_COMING_SOON_ONLY}.
+	 *
+	 * @param int $post_id A film record.
+	 */
+	private function is_only_coming_soon( int $post_id ): bool {
+		return '1' === (string) get_post_meta( $post_id, ContentModel::FILM_COMING_SOON_ONLY, true );
 	}
 
 	/**
@@ -326,7 +336,7 @@ final class Repository {
 			// that is not happening. It goes back to a draft — which is the
 			// same promise the switch makes, kept when Veezi is the one who
 			// changed its mind. A film that has been on sale keeps its page.
-			if ( '1' === (string) get_post_meta( $post_id, ContentModel::FILM_COMING_SOON_ONLY, true ) ) {
+			if ( $this->is_only_coming_soon( $post_id ) ) {
 				$film['post_status'] = 'draft';
 			}
 

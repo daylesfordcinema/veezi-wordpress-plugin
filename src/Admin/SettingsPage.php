@@ -185,6 +185,16 @@ final class SettingsPage {
 			'This publishes programming that may not have been announced, so switching it on is an announcement. And a planned time is not a commitment — it can still move or be dropped, and the site follows it at the next sync.',
 			'veezi-wordpress-plugin'
 		);
+		echo '</p><p>';
+
+		// Which cuts both ways, and the second way is the one somebody needs
+		// told: switching this off is a retraction, and a retraction that takes
+		// an hour is not what anybody pressing it has in mind. The button that
+		// makes it immediate is on this screen already, a little further down.
+		esc_html_e(
+			'Saving takes effect at the next sync, up to an hour away. Press Sync now below to publish — or to take back — what you have just changed straight away.',
+			'veezi-wordpress-plugin'
+		);
 		echo '</p>';
 	}
 
