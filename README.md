@@ -2,44 +2,90 @@
 
 [![CI](https://github.com/daylesfordcinema/veezi-wordpress-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/daylesfordcinema/veezi-wordpress-plugin/actions/workflows/ci.yml)
 
-Your cinema's programme already exists — in [Veezi](https://www.veezi.com/). This
-plugin reads it and turns it into ordinary WordPress content, so your website
-follows the ticketing system instead of being retyped from it every week.
+Veezi for WordPress is a WordPress plugin that publishes a cinema's
+[Veezi](https://www.veezi.com/) programme as WordPress content: one post per
+film, one per screening, posters copied into the media library and booking links
+attached.
 
-Films become posts. Screenings become posts. Posters land in your media library.
-Booking links point at your own Veezi checkout. From there you build the listings
-in Elementor exactly as you'd build anything else: drag out a widget, bind a
-field, style it.
+It is read-only. Ticket sales, seat selection and payment all stay in Veezi.
 
-**Nothing is sold through your website.** The integration is read-only — ticket
-sales, seat selection and payment all stay in Veezi.
+## Requirements
 
-**Requirements:** WordPress 6.5+, PHP 8.2+, and a Veezi account. Elementor is
-free and does most of what's described here; a few pieces (the loop grid and the
-theme builder) need Elementor Pro, and those are marked where they come up.
+- WordPress 6.5 or later
+- PHP 8.2 or later
+- A Veezi account, and the access token it issues
+- Elementor, to build the listings. The free version covers the fields and the
+  plugin's own widget; the loop grid and the theme builder are Elementor Pro
+  features, and they are marked as such below.
 
----
+## Overview
+
+### The problem
+
+A cinema's programme lives in its ticketing system and its website lives
+somewhere else, so keeping the two in step means retyping session times every
+week — and again whenever a session moves, sells out or is added. It drifts the
+first time somebody is busy on a Tuesday.
+
+### How it works
+
+The plugin reads the programme from the Veezi API on a schedule and writes it
+into WordPress as ordinary content. Films become posts of a `Films` post type,
+screenings become posts of a `Sessions` post type, and the artwork goes into the
+media library.
+
+Because the result is native WordPress content, there is no special listing
+mode and no shortcode to learn. You build the pages in Elementor the way you
+build anything else — drag out a widget, bind a field, style it. What the plugin
+adds is the fields to bind, one widget for the thing a page builder cannot
+express, and four starter templates.
+
+The cinema goes on managing its programme in Veezi. The website follows.
 
 ## Quick start
 
-1. **Install and activate** the plugin — upload the release `.zip` under
-   **Plugins → Add New → Upload Plugin**, or drop the folder into
-   `wp-content/plugins/`.
-2. **Get your token.** In Veezi Back Office go to **Settings → Web** and copy
-   the access token. Veezi issues one per cinema.
-3. **Paste it in.** In WordPress go to **Settings → Veezi**, paste the token,
-   and press **Save settings**. The page comes back and tells you which cinema
-   you're connected to — if it names your cinema, you're done.
-4. **Wait, or don't.** The programme syncs by itself every hour. To see it now,
-   press **Sync now** on the same screen. You should get something like
-   *"Synced 9 films and 16 sessions from …"*.
-5. **Look at what arrived.** There are new **Films** and **Sessions** menus in
-   the WordPress sidebar. If films are listed there with their posters, the hard
-   part is over — everything after this is page building.
+### 1. Install and activate
 
-Then head to [Building your listings](#building-your-listings).
+Upload the release `.zip` under **Plugins → Add New → Upload Plugin**, or copy
+the folder into `wp-content/plugins/`. Activate it.
 
----
+### 2. Get your access token
+
+In Veezi Back Office, go to **Settings → Web** and copy the access token. Veezi
+issues one per cinema. It is read-only as far as this plugin is concerned, but
+treat it as a credential — see [Privacy and your access
+token](#privacy-and-your-access-token).
+
+### 3. Connect
+
+In WordPress, go to **Settings → Veezi**, paste the token in, and press **Save
+settings**.
+
+The page comes back and tells you which cinema you are connected to. If it names
+your cinema, the connection works. If it doesn't, see
+[Troubleshooting](#troubleshooting).
+
+### 4. Sync the programme
+
+The programme syncs by itself every hour, so you can simply wait. To see it now,
+press **Sync now** on the same screen. You should get something like:
+
+> Synced 9 films and 16 sessions from Phoenix Cinema.
+
+### 5. Check what arrived
+
+There are new **Films** and **Sessions** menus in the WordPress sidebar. Open
+**Films**: if your films are listed there with their posters, the setup is done
+and everything after this is page building.
+
+### Next steps
+
+- [Building your listings](#building-your-listings) — the fields, the widget and
+  the starter templates
+- [The four listings](#the-four-listings) — Now Showing, what's on, Coming Soon
+  and film pages
+- [Coming Soon](#coming-soon-publishing-whats-not-on-sale-yet) — off until you
+  turn it on
 
 ## What appears in WordPress
 
@@ -58,8 +104,6 @@ One thing worth knowing: your listings are built from what's *scheduled*, never
 from your Veezi film catalogue. Every film in a Veezi account reports itself as
 active, test records included, so a listing built from the catalogue would
 advertise films that will never screen.
-
----
 
 ## Building your listings
 
@@ -160,9 +204,7 @@ when there isn't. While you're in the editor it does more: if nothing has *ever*
 synced it names the settings screen instead, because that's a fault and you're
 the person who can fix it. Visitors never see that version.
 
----
-
-## The four things you can build
+## The four listings
 
 ### Now Showing
 
@@ -191,8 +233,11 @@ six.
 
 ### Coming Soon
 
-See [the section below](#coming-soon-publishing-whats-not-on-sale-yet) — it's off
-until you turn it on.
+Films you have scheduled but not yet put on sale. Built the same way as Now
+Showing, with the **Coming Soon** term and the coming soon card as its loop item
+— but it publishes nothing until you switch it on, and there is more to know
+before you do. It has [a section of its own
+below](#coming-soon-publishing-whats-not-on-sale-yet).
 
 ### Film pages
 
@@ -217,8 +262,6 @@ which no player can be pointed at directly; the video widget takes that form and
 works out the embed itself, along with every privacy and playback setting it
 offers. More than half a typical catalogue has no trailer, and for those the
 widget renders nothing rather than an empty player.
-
----
 
 ## Coming Soon: publishing what's not on sale yet
 
@@ -267,8 +310,6 @@ be bought.
 Changes here take effect at the next sync, up to an hour away. Press **Sync now**
 to publish — or take back — straight away.
 
----
-
 ## Keeping it up to date
 
 A sync runs **hourly** on WordPress's cron, so nobody has to remember anything.
@@ -312,8 +353,6 @@ General**. It compares clocks rather than names: Melbourne and Sydney are two
 names for one clock, and warning about that would only teach you to ignore the
 warning.
 
----
-
 ## Posters
 
 Artwork is copied into your media library and set as each film's featured image,
@@ -336,8 +375,6 @@ media reference, so a poster that changes twice a year is fetched twice a year. 
 film whose artwork is missing or unreachable syncs without one rather than
 failing.
 
----
-
 ## Privacy and your access token
 
 Your Veezi token is a live credential for your ticketing account, and it can read
@@ -356,7 +393,29 @@ tickets left" are kept, because that's all a visitor needs. Nothing can leak sea
 counts through a REST route, an export or a careless template, because they were
 never written down in the first place.
 
----
+## Known limitations
+
+- **Elementor is the supported page builder.** The fields are Elementor dynamic
+  tags, so they are not available to other builders or to a plain theme template.
+- **The listings themselves need Elementor Pro**, because the loop grid is a Pro
+  widget, as is the theme builder that puts the film page behind every film.
+  Everything the plugin itself provides works with free Elementor.
+- **In the "what's on" listing, the day heading repeats on every row of that
+  day.** A field answers for the row it is rendering and cannot see the one above
+  it, so grouping is a per-row heading plus a few lines of your CSS.
+- **A row you can't book looks like one you can.** It correctly has no link on
+  it, but the starter template gives every row the same styling, so the badge is
+  the only visible difference. Style them apart if you want them apart.
+- **A booking button with nothing to book still renders.** That is Elementor's
+  button widget, not the plugin: given an empty link it draws the button anyway.
+  The coming-soon card and the film page template both ship without one for this
+  reason.
+- **Films and sessions cannot be edited by hand** — the next sync overwrites
+  them. Change the programme in Veezi.
+- **One Veezi account per WordPress site.** A cinema with two Veezi sites needs
+  two WordPress sites, or a plugin of its own.
+- **Changes take up to an hour** unless you press **Sync now**, including
+  turning Coming Soon on or off.
 
 ## Troubleshooting
 
@@ -373,8 +432,6 @@ never written down in the first place.
 | **Showtimes are hours out** | Almost certainly not the plugin — check whether you're looking at a showtime or at a WordPress date field, and see [Showtimes and timezones](#showtimes-and-timezones). |
 | **The programme has quietly stopped changing** | Look at "Last synced" on **Settings → Veezi**. If it's old and there's no failure notice, the scheduled event may have been lost — deactivating and reactivating the plugin puts it back. |
 | **An admin notice about a failed sync** | Veezi was unreachable or rejected the token. Your site is still showing the last good programme. It clears itself on the next run that works. |
-
----
 
 ## Snippets
 
@@ -410,8 +467,6 @@ force.
 define( 'VEEZI_API_TOKEN', 'your-token-here' );
 ```
 
----
-
 ## Uninstalling
 
 **Deactivating** takes the scheduled sync off the queue and withdraws the film
@@ -431,7 +486,15 @@ wp post delete $( wp post list --post_type=veezi_session --format=ids ) --force
 wp post delete $( wp post list --post_type=veezi_film --format=ids ) --force
 ```
 
----
+## Support
+
+Bug reports and questions go to
+[GitHub issues](https://github.com/daylesfordcinema/veezi-wordpress-plugin/issues).
+
+If you are reporting a sync problem, the useful things to include are what
+**Settings → Veezi** says under "Last synced", whether **Test connection**
+succeeds, and any Veezi-related lines from the server's PHP error log. **Never
+paste your access token** into an issue — it reads your cinema's sales figures.
 
 ## Contributing
 
