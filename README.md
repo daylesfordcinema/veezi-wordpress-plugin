@@ -85,8 +85,17 @@ The rank is a position — 1, 2, 3 — not a timestamp. The column is a signed
 Screenings are deleted once they finish, so a listing can be "the next six" with
 no date filter — which the loop grid could not express anyway, its own date
 filter being backwards-looking and reading the published date. The cutoff is the
-end of the film rather than the start of it, so a screening does not disappear
-from the website while there is an audience sitting in it.
+end of the film rather than the start of it, so the record does not disappear
+while there is an audience sitting in it.
+
+The two views differ deliberately about that last hour. **A chronological
+listing drops a screening the moment it starts**, because a row nobody can get
+to or buy is noise at the top of today — and the sync runs hourly, so leaving it
+to the records alone would go on offering a missed screening for as long as an
+hour. **A film's own list of times keeps it**, marked and unbookable, until it
+ends: a card that dropped it would say the film next screens tomorrow while it
+is on. Neither needs configuring, and there is nothing in either query for a
+designer to get wrong.
 
 That is the latest a screening can survive, not a guarantee of the earliest.
 Anything Veezi stops listing is deleted on the next sync whatever its time says,
@@ -221,7 +230,7 @@ builder cannot express.
 
 ### Fields to bind
 
-Eight entries appear in Elementor's dynamic-data picker under **Veezi
+Eleven entries appear in Elementor's dynamic-data picker under **Veezi
 Programme**:
 
 | Tag | On a film | On a screening |
@@ -232,14 +241,33 @@ Programme**:
 | **Genre** | every genre it is filed under | — |
 | **Cast and Crew** | everybody credited, or one role at a time | — |
 | **Trailer Link** | the trailer, as a link a video widget understands | — |
+| **Film Title** | its own title | the title of the film screening |
 | **Session Time** | when it next screens | that screening's time |
+| **Availability** | whether that screening is gone or nearly | the same, for this one |
 | **Booking Link** | the soonest screening still on sale | that screening, unless it is sold out |
+| **Nothing Scheduled** | a sentence, when the cinema has nothing on at all | the same |
 
 They read whichever record is being rendered, so the same card works inside a
 loop and on a film's own page, with nothing to name and nothing to configure —
 and a duplicated template behaves exactly like the one it was copied from.
+**Nothing Scheduled** is the exception: it reads no record, because it is a fact
+about the cinema rather than about a film.
 
-Two of them answer differently on a film and on a screening, and **Booking Link**
+**Session Time** carries a **Format** control, and it is what lets a listing
+group itself: bind the tag once with a date format for the day a row belongs
+under, and again with a time format for the row itself. The codes are the ones
+from Settings → General. Left empty it is the site's own date and time, worked
+out afresh on every page load, so changing the site's format changes what a card
+says without waiting for a sync.
+
+**Availability** reads "Sold out" or "Few tickets left", in whatever words the
+panel is given, and **nothing at all** the rest of the time — a listing where
+every row carries a badge has no badge. Bind it to something you are content to
+see render empty. The numbers behind it never reach the site: Veezi reports
+seats sold and seats held on the same record, and the sync keeps the two flags
+and discards the rest, so a page showing this cannot leak a night's takings.
+
+Three of them answer differently on a film and on a screening, and **Booking Link**
 deliberately skips past a sold-out screening to the next one that can still be
 bought. A button pointing at the soonest screening whatever its state goes dead
 the moment that screening sells out, and stays dead for the rest of the week
@@ -290,6 +318,34 @@ looks clickable and is not. Give it a display condition, or delete it and let th
 session times do the booking, which they already do: every time in the list is a
 link to the seats for that screening.
 
+### A listing by day, to start from
+
+The other listing the cinema wants is the calendar: everything still to come, in
+order, whatever the film — for somebody who has a free evening rather than a
+film in mind. It is a loop grid pointed at **Sessions** instead of Films, sorted
+by **Menu Order**, and it needs no widget of the plugin's at all. A row is one
+screening, so every part of it is an ordinary widget bound to a field.
+
+`templates/session-row.json` is that row: the day it belongs under, the time,
+the film, whether the seats are going, and the time itself linking to those
+seats. Import it as a **loop item** the same way as the card.
+
+Two things about it are worth knowing.
+
+**The day heading repeats on every row of that day.** A dynamic tag answers for
+the record it is rendering and cannot see the one above it, so grouping is a
+per-row heading and a designer's stylesheet, not a query. That was the choice
+against a widget which emits one heading per day: the listing is buildable
+without it, and the plugin owning a second widget is a permanent liability to
+Elementor's widget API in exchange for something only nicer.
+
+**The time is an icon list rather than a button**, deliberately, and it is the
+one place in these templates where the choice of widget is load-bearing. Bind a
+booking link that resolves to nothing to a **button** and Elementor renders it
+anyway — styled, inviting, going nowhere. Bind it to an **icon list** item and
+Elementor renders the text with no anchor around it at all. Which is exactly
+what a sold-out row should be: still listed, still legible, nothing to click.
+
 ### A film page to start from
 
 Every film also has a page of its own, at `/film/<its name>/`. The address is
@@ -338,10 +394,21 @@ and no other.
 
 ### When nothing appears
 
-Plugin-rendered output explains itself in the builder rather than collapsing to
+A cinema between seasons has nothing on and is working perfectly. A cinema whose
+token has stopped working also has nothing on. On the page those two look
+identical — an empty grid — so the plugin gives you something to say.
+
+Put a heading below the listing and bind it to **Nothing Scheduled**. It stays
+empty for as long as there is a programme, and reads a sentence of your choosing
+when there is not. Whoever is building the page gets more than that: if nothing
+has *ever* synced, the same tag names the settings screen instead, because that
+is a fault and they are the person who can go and fix it.
+
+Plugin-rendered output does the same in the builder rather than collapsing to
 nothing: a widget with nothing to show says whether the programme has not synced
-yet — naming the settings screen — or whether this particular film has simply
-finished. A visitor sees nothing at all, which is correct.
+yet, whether the preview is set to something that is not a film, or whether this
+particular film has simply finished. A visitor sees nothing at all, which is
+correct.
 
 ## Installing
 

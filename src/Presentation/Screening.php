@@ -83,6 +83,12 @@ final class Screening {
 	 * the posts table — sorting by the timestamp would mean a join and a sort on
 	 * a text column holding a number.
 	 *
+	 * Every screening still on the site, including one that started twenty
+	 * minutes ago. The chronological listing hides those; a film's own times do
+	 * not, because dropping the screening that is on right now would make a card
+	 * say the film next screens tomorrow while an audience is sitting in it. It
+	 * shows as a row with no link, which is what it is.
+	 *
 	 * @param  int $film_post A film record.
 	 * @param  int $limit     How many at most; zero for all of them.
 	 * @return array<int,self>
@@ -100,16 +106,18 @@ final class Screening {
 		// phpcs:disable WordPress.DB.SlowDBQuery
 		$found = get_posts(
 			array(
-				'post_type'   => ContentModel::SESSION,
-				'post_status' => 'publish',
-				'numberposts' => $limit > 0 ? $limit : -1,
-				'fields'      => 'ids',
-				'orderby'     => array(
+				'post_type'                   => ContentModel::SESSION,
+				'post_status'                 => 'publish',
+				'numberposts'                 => $limit > 0 ? $limit : -1,
+				'fields'                      => 'ids',
+				'orderby'                     => array(
 					'menu_order' => 'ASC',
 					'ID'         => 'ASC',
 				),
-				'meta_key'    => ContentModel::SESSION_FILM,
-				'meta_value'  => (string) $film_post,
+				'meta_key'                    => ContentModel::SESSION_FILM,
+				'meta_value'                  => (string) $film_post,
+
+				ContentModel::EVERY_SCREENING => true,
 			)
 		);
 		// phpcs:enable WordPress.DB.SlowDBQuery
@@ -125,6 +133,27 @@ final class Screening {
 		}
 
 		return $screenings;
+	}
+
+	/**
+	 * Whether the cinema has anything at all still to come.
+	 *
+	 * Asked without {@see ContentModel::EVERY_SCREENING}, so it is answered by
+	 * exactly the rule the chronological listing follows. Anything else and the
+	 * two would disagree at the worst possible moment: an empty listing under a
+	 * heading saying there is plenty on, or the reverse.
+	 */
+	public static function any_upcoming(): bool {
+		$found = get_posts(
+			array(
+				'post_type'   => ContentModel::SESSION,
+				'post_status' => 'publish',
+				'numberposts' => 1,
+				'fields'      => 'ids',
+			)
+		);
+
+		return array() !== $found;
 	}
 
 	/**
@@ -150,6 +179,25 @@ final class Screening {
 		}
 
 		return null;
+	}
+
+	/**
+	 * What to say about the seats, or nothing when there is nothing to say.
+	 *
+	 * The words are the caller's because they are the designer's: one panel
+	 * calls it "Sold out" and the next "Full house", and neither should need a
+	 * translation file. Sold out wins when Veezi sends both, which it does —
+	 * it is the one that stops somebody making the trip.
+	 *
+	 * @param string $sold_out What a screening with no seats reads.
+	 * @param string $few_left What a screening nearly gone reads.
+	 */
+	public function availability( string $sold_out, string $few_left ): string {
+		if ( $this->sold_out ) {
+			return $sold_out;
+		}
+
+		return $this->few_tickets_left ? $few_left : '';
 	}
 
 	/**

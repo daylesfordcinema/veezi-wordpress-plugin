@@ -44,10 +44,13 @@ final class Integration {
 	 * @var array<int,class-string<Tags\Tag>>
 	 */
 	private const TAGS = array(
+		Tags\Availability::class,
 		Tags\BookingUrl::class,
 		Tags\CastAndCrew::class,
 		Tags\Classification::class,
+		Tags\FilmTitle::class,
 		Tags\Genre::class,
+		Tags\NothingScheduled::class,
 		Tags\Poster::class,
 		Tags\Runtime::class,
 		Tags\SessionTime::class,

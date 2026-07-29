@@ -22,10 +22,11 @@ defined( 'ABSPATH' ) || exit;
  * and a card is built long before anybody knows which of its fields a given
  * film will turn out to have.
  *
- * Two of them answer for either kind of record. On a screening they describe
+ * Three of them answer for either kind of record. On a screening they describe
  * that screening; on a film they describe one of its screenings, because a card
- * for a film still wants a time and a button — and it is the **same** screening
- * for both, so that a card cannot headline Saturday and sell Sunday.
+ * for a film still wants a time, a button and a word about the seats — and it is
+ * the **same** screening for all three, so that a card cannot headline Saturday
+ * and sell Sunday.
  */
 final class Fields {
 
@@ -106,20 +107,61 @@ final class Fields {
 	}
 
 	/**
-	 * Written out in the site's date and time format, in the cinema's timezone.
+	 * Written out in the cinema's timezone, in whatever shape was asked for.
 	 *
-	 * @param int $post_id A film or a session record.
+	 * The format is what lets one tag give a chronological listing both of the
+	 * things it needs: a date alone is the day heading a row sits under, and a
+	 * time alone is the row. Left empty it is the site's own date and time,
+	 * which is what a card asks for and what every template built before there
+	 * was a choice stored.
+	 *
+	 * @param int    $post_id A film or a session record.
+	 * @param string $format  A PHP date format, or an empty string for the site's.
 	 */
-	public static function session_time( int $post_id ): string {
+	public static function session_time( int $post_id, string $format = '' ): string {
 		$screening = self::screening_for( $post_id );
 
 		if ( null === $screening ) {
 			return '';
 		}
 
-		return $screening->in_words(
-			trim( (string) get_option( 'date_format' ) . ' ' . (string) get_option( 'time_format' ) )
-		);
+		return $screening->in_words( '' === $format ? self::site_format() : $format );
+	}
+
+	/**
+	 * How this site writes a date and a time out, together.
+	 */
+	public static function site_format(): string {
+		return trim( (string) get_option( 'date_format' ) . ' ' . (string) get_option( 'time_format' ) );
+	}
+
+	/**
+	 * What the cinema is saying about the seats for this screening.
+	 *
+	 * @param int    $post_id  A film or a session record.
+	 * @param string $sold_out What a screening with no seats reads.
+	 * @param string $few_left What a screening nearly gone reads.
+	 */
+	public static function availability( int $post_id, string $sold_out, string $few_left ): string {
+		return self::screening_for( $post_id )?->availability( $sold_out, $few_left ) ?? '';
+	}
+
+	/**
+	 * The film's title, whichever kind of record is being looked at.
+	 *
+	 * A session's own title carries the time as well as the film — that is what
+	 * makes a list of them legible in the admin — so a row bound to the ordinary
+	 * post title would print the time twice, once in a shape no control can
+	 * change.
+	 *
+	 * @param int $post_id A film or a session record.
+	 */
+	public static function film_title( int $post_id ): string {
+		$film = self::is_screening( $post_id )
+			? (int) get_post_meta( $post_id, ContentModel::SESSION_FILM, true )
+			: $post_id;
+
+		return $film > 0 ? get_the_title( $film ) : '';
 	}
 
 	/**

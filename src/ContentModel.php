@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Veezi\WordPress;
 
+use WP_Query;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -112,6 +114,60 @@ final class ContentModel {
 	 * Which version of the plugin last rebuilt the site's routing table.
 	 */
 	public const REWRITES_VERSION = 'veezi_rewrites_version';
+
+	/**
+	 * Ask a session query for every screening, including the ones already under
+	 * way. See {@see self::hide_screenings_that_have_started()}.
+	 */
+	public const EVERY_SCREENING = 'veezi_every_screening';
+
+	/**
+	 * Keep a screening out of a listing from the moment it starts.
+	 *
+	 * Nearly everything about which records a listing holds is settled at sync
+	 * time: past screenings are deleted, so "what is still to come" needs no
+	 * date filter and the page builder — which could not express one anyway —
+	 * has nothing to configure. This is the one thing that cannot be, because
+	 * the sync runs hourly and the question changes every minute. A listing
+	 * driven by the records alone would go on offering a screening for as long
+	 * as an hour after it began.
+	 *
+	 * A screening is deleted once it *ends* rather than once it starts, and
+	 * that is deliberate too: a film's own card should not claim it next
+	 * screens tomorrow while an audience is sitting in it. So the record
+	 * outlives the listing entry, and {@see Presentation\Screening::for_film()}
+	 * asks for every screening while the chronological listing does not.
+	 *
+	 * Two kinds of query are exempt. Anything in wp-admin, because an
+	 * administrator looking at Sessions is looking at the records rather than
+	 * at what a visitor sees. And anything that asks for
+	 * {@see self::EVERY_SCREENING} — which the sync's own lookup must, since a
+	 * record it fails to find is one it creates a second copy of.
+	 *
+	 * @param WP_Query $query Any query WordPress is about to run.
+	 */
+	public static function hide_screenings_that_have_started( WP_Query $query ): void {
+		if ( is_admin() || $query->get( self::EVERY_SCREENING ) ) {
+			return;
+		}
+
+		if ( ! in_array( self::SESSION, (array) $query->get( 'post_type' ), true ) ) {
+			return;
+		}
+
+		// Appended rather than assigned: a query that already carries meta
+		// conditions of its own — the film relation a card's list of times is
+		// matched on, say — keeps them, and WordPress ands the two together.
+		$conditions   = (array) $query->get( 'meta_query' );
+		$conditions[] = array(
+			'key'     => self::SESSION_STARTS,
+			'value'   => (string) time(),
+			'compare' => '>',
+			'type'    => 'NUMERIC',
+		);
+
+		$query->set( 'meta_query', $conditions );
+	}
 
 	public static function register(): void {
 		self::register_post_types();

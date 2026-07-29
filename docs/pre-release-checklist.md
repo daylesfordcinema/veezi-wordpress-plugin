@@ -13,10 +13,11 @@ Keep it short. Every item that can be moved into the suite should be.
 The plugin registers dynamic tags and one widget, and both of those are **free**
 Elementor APIs. So tag resolution, the session-times widget's rendered output,
 its controls, and the notice it shows when nothing has synced are all ordinary
-tests — `DynamicTagsTest`, `SessionTimesTest`, `StarterTemplateTest`. The
-starter templates are checked against the tags and widgets the plugin actually
-registers, because a binding that no longer resolves renders an empty box rather
-than an error.
+tests — `DynamicTagsTest`, `SessionTimesTest`, `StarterTemplateTest`. So is the
+rule that keeps a screening under way out of a chronological listing, which is
+an ordinary WordPress query filter: `CalendarTest`. The starter templates are
+checked against the tags and widgets the plugin actually registers, because a
+binding that no longer resolves renders an empty box rather than an error.
 
 None of that belongs here. What belongs here is only the part where Pro reads
 what the plugin produced.
@@ -36,6 +37,30 @@ Against a site with the programme synced and at least one film screening.
       Order**, ascending. Films come out in the order they next screen. The rank
       itself is tested; that Pro's query control honours it is not.
 
+- [ ] **A loop grid over Sessions renders the calendar.** Import
+      `templates/session-row.json`, point a loop grid at Sessions with it as the
+      item template and the query sorted by **Menu Order**. Every screening
+      still to come comes out in chronological order, each row under the day it
+      is on, with the film's title rather than the session record's own — and
+      nothing planned but unannounced among them. Set **Items Per Page** high
+      enough to see the whole programme; it defaults to six.
+
+- [ ] **A screening that has begun is gone from that grid, and still on the
+      film's card.** Move one session's `_veezi_starts_at` to twenty minutes ago.
+      The calendar drops the row; the film's own Session Times keeps it, marked
+      and with no link. This is the one behaviour the two views disagree on by
+      design, and only Pro's loop grid can show half of it.
+
+- [ ] **A sold-out row has no anchor at all.** Set `_veezi_sold_out` on a
+      session. The row keeps its time as plain text with the badge beside it —
+      not a link, and not a button that goes nowhere. Read the markup rather than
+      the accessibility snapshot, which does not report unlinked text.
+
+- [ ] **The empty state appears, and only then.** With a programme, the heading
+      bound to **Nothing Scheduled** renders empty. Shift every
+      `_veezi_starts_at` a year into the past and it reads its sentence while
+      the grid renders nothing.
+
 - [ ] **A theme-builder Single renders the film page.** Import
       `templates/film-page.json` into a Single template for Films and view a
       film at `/film/<its name>/`. Credits, session times, synopsis and trailer
@@ -46,8 +71,8 @@ Against a site with the programme synced and at least one film screening.
       booking link resolves to nothing, and nothing on the page is an error or
       an empty player.
 
-- [ ] **Both templates import cleanly.** From a standing start — Templates →
-      Saved Templates → Import — with no notice about a missing widget. A
+- [ ] **All three templates import cleanly.** From a standing start — Templates
+      → Saved Templates → Import — with no notice about a missing widget. A
       template referring to a widget this version no longer registers imports
       silently and renders nothing.
 
