@@ -45,11 +45,10 @@ Against a site with the programme synced and at least one film screening.
       nothing planned but unannounced among them. Set **Items Per Page** high
       enough to see the whole programme; it defaults to six.
 
-- [ ] **A screening that has begun is gone from that grid, and still on the
-      film's card.** Move one session's `_veezi_starts_at` to twenty minutes ago.
-      The calendar drops the row; the film's own Session Times keeps it, marked
-      and with no link. This is the one behaviour the two views disagree on by
-      design, and only Pro's loop grid can show half of it.
+- [ ] **A screening that has begun is gone from that grid.** Move one session's
+      `_veezi_starts_at` to twenty minutes ago. The calendar drops the row; the
+      film's own Session Times keeps it, with no link. Only Pro's loop grid can
+      show the first half of that.
 
 - [ ] **A sold-out row has no anchor at all.** Set `_veezi_sold_out` on a
       session. The row keeps its time as plain text with the badge beside it —

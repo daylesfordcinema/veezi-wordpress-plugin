@@ -93,13 +93,8 @@ final class CalendarTest extends TestCase {
 
 	/**
 	 * And a film's own list of times keeps it, which is the one deliberate
-	 * difference between the two views.
-	 *
-	 * A card is about one film. Dropping the screening that is on right now
-	 * makes the card say the film next screens tomorrow while an audience is
-	 * sitting in it — so it stays, unbookable and marked, until it ends. The
-	 * chronological listing is about choosing an evening, and a row nobody can
-	 * get to or buy is noise at the top of today.
+	 * difference between the two views — a card that dropped it would say the
+	 * film next screens tomorrow while an audience is sitting in it.
 	 */
 	public function test_a_films_own_times_keep_a_screening_that_has_begun(): void {
 		$this->veezi_is_showing( 2 );
@@ -108,6 +103,80 @@ final class CalendarTest extends TestCase {
 		$this->has_begun( $this->session_record( 2000 ) );
 
 		$this->assertCount( 2, Screening::for_film( $this->film_record( 'film-cook' ) ) );
+	}
+
+	/**
+	 * It keeps the row and loses the link, from the moment it starts.
+	 *
+	 * Veezi takes the booking link away itself — its websession feed is
+	 * future-only — but not until the next sync, which is up to an hour later.
+	 * In the meantime a card would go on selling a screening the visitor has
+	 * missed, which is the whole of what they must not be offered.
+	 */
+	public function test_a_screening_that_has_begun_can_no_longer_be_booked(): void {
+		$this->veezi_is_showing( 2 );
+		$this->sync_at();
+
+		$film  = $this->film_record( 'film-cook' );
+		$begun = $this->session_record( 2000 );
+
+		$this->assertStringContainsString( 'session=2000', $this->rendered_widget( 'veezi-session-times', $film ) );
+
+		$this->has_begun( $begun );
+
+		$rendered = $this->rendered_widget( 'veezi-session-times', $film );
+
+		$this->assertStringNotContainsString( 'session=2000', $rendered, 'A screening under way is still being sold.' );
+		$this->assertStringContainsString( 'session=2001', $rendered, 'And the rest of the week went with it.' );
+
+		// The card's button and its headline time move on to the next
+		// screening together, which is ticket 06's rule: never headline one
+		// and sell another.
+		$this->assertSame( '', $this->bound( 'veezi-booking-url', $begun ) );
+		$this->assertStringContainsString( 'session=2001', (string) $this->bound( 'veezi-booking-url', $film ) );
+	}
+
+	/**
+	 * Conditions a listing already carries survive, and cannot loosen this one.
+	 *
+	 * Appending a clause to a set joined by OR would *widen* the query rather
+	 * than narrow it, and the screening under way would walk back into the one
+	 * listing this exists to keep it out of. Nothing in the plugin writes an OR
+	 * — a designer's own query control is what would, and by then the mistake
+	 * is on a live site.
+	 */
+	public function test_a_listing_of_its_own_devising_cannot_loosen_the_rule(): void {
+		$this->veezi_is_showing( 2 );
+		$this->sync_at();
+
+		$begun     = $this->session_record( 2000 );
+		$still_due = $this->session_record( 2001 );
+
+		$this->has_begun( $begun );
+
+		$found = get_posts(
+			array(
+				'post_type'   => ContentModel::SESSION,
+				'post_status' => 'publish',
+				'numberposts' => -1,
+				'fields'      => 'ids',
+				'orderby'     => array( 'menu_order' => 'ASC' ),
+				'meta_query'  => array( // phpcs:ignore WordPress.DB.SlowDBQuery -- The condition under test.
+					'relation' => 'OR',
+					array(
+						'key'     => ContentModel::SESSION_FILM,
+						'value'   => (string) $this->film_record( 'film-cook' ),
+						'compare' => '=',
+					),
+					array(
+						'key'     => ContentModel::SESSION_ID,
+						'compare' => 'EXISTS',
+					),
+				),
+			)
+		);
+
+		$this->assertSame( array( $still_due ), $found );
 	}
 
 	/**

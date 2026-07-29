@@ -83,11 +83,11 @@ final class Screening {
 	 * the posts table — sorting by the timestamp would mean a join and a sort on
 	 * a text column holding a number.
 	 *
-	 * Every screening still on the site, including one that started twenty
-	 * minutes ago. The chronological listing hides those; a film's own times do
-	 * not, because dropping the screening that is on right now would make a card
-	 * say the film next screens tomorrow while an audience is sitting in it. It
-	 * shows as a row with no link, which is what it is.
+	 * Every screening still on the site, including one under way — which a
+	 * chronological listing hides and a card does not. The argument is at
+	 * {@see ContentModel::hide_screenings_that_have_started()}; here it is why
+	 * this asks for the exemption. {@see self::is_bookable()} is what makes such
+	 * a row unsellable rather than merely present.
 	 *
 	 * @param  int $film_post A film record.
 	 * @param  int $limit     How many at most; zero for all of them.
@@ -201,14 +201,32 @@ final class Screening {
 	}
 
 	/**
+	 * Whether this one has begun.
+	 *
+	 * Read from the clock rather than from anything the sync wrote, because the
+	 * sync runs hourly and this changes every minute.
+	 */
+	public function has_started(): bool {
+		return $this->starts_at <= time();
+	}
+
+	/**
 	 * Whether a visitor can still buy a ticket for this one.
 	 *
-	 * Two ways to answer no. Sold out is the obvious one. The other is a
+	 * Three ways to answer no. Sold out is the obvious one. The second is a
 	 * screening with no link at all, which is either box-office-only or one
-	 * whose sales have closed because it is about to start — and in both cases
-	 * there is nothing useful to point at.
+	 * whose sales have closed — and in both cases there is nothing useful to
+	 * point at.
+	 *
+	 * The third is a screening that has begun. Veezi withdraws the link itself,
+	 * its websession feed being future-only, but not until the next sync — so
+	 * for as long as an hour a card would go on selling something the visitor
+	 * has already missed. The row stays, which is ticket 05's point; the offer
+	 * does not, which is this one's. It is also what keeps a card's headline
+	 * time and its button on the same screening, since both follow the soonest
+	 * one that can still be acted on.
 	 */
 	public function is_bookable(): bool {
-		return ! $this->sold_out && '' !== $this->booking_url;
+		return ! $this->sold_out && '' !== $this->booking_url && ! $this->has_started();
 	}
 }
