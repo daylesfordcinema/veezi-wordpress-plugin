@@ -15,7 +15,9 @@ Elementor APIs. So tag resolution, the session-times widget's rendered output,
 its controls, and the notice it shows when nothing has synced are all ordinary
 tests — `DynamicTagsTest`, `SessionTimesTest`, `StarterTemplateTest`. So is the
 rule that keeps a screening under way out of a chronological listing, which is
-an ordinary WordPress query filter: `CalendarTest`. The starter templates are
+an ordinary WordPress query filter: `CalendarTest`. So is everything about which
+records coming-soon publication creates, publishes and withdraws, which is the
+sync writing statuses and terms: `ComingSoonTest`. The starter templates are
 checked against the tags and widgets the plugin actually registers, because a
 binding that no longer resolves renders an empty box rather than an error.
 
@@ -59,6 +61,17 @@ Against a site with the programme synced and at least one film screening.
       bound to **Nothing Scheduled** renders empty. Shift every
       `_veezi_starts_at` a year into the past and it reads its sentence while
       the grid renders nothing.
+
+- [ ] **A Coming Soon grid holds what has been announced, and only that.** With
+      **Publish what is coming** on at Settings → Veezi, copy the Now Showing
+      grid and switch its Listings term to **Coming Soon**. It holds the films
+      with planned screenings inside the horizon and no others — nothing on sale
+      only, and nothing beyond the horizon. Which term a grid filters by is
+      Pro's query control; that the terms are right is `ComingSoonTest`.
+
+- [ ] **Switching it off empties that grid again.** Turn the setting off and
+      **Sync now**. The grid renders nothing, and a film that had only ever been
+      coming soon 404s while one that has been on sale still resolves.
 
 - [ ] **A theme-builder Single renders the film page.** Import
       `templates/film-page.json` into a Single template for Films and view a

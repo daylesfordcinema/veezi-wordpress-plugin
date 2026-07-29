@@ -62,21 +62,34 @@ final class Programme {
 	private readonly array $selling;
 
 	/**
+	 * Which films have something planned that the cinema has asked to talk
+	 * about — see {@see ComingSoon}.
+	 *
+	 * @var array<string,bool>
+	 */
+	private readonly array $announced;
+
+	/**
 	 * @var array<string,Film>
 	 */
 	private readonly array $films;
 
 	/**
-	 * @param array<string,Film> $films    Keyed by their Veezi identifier.
-	 * @param array<int,Session> $sessions Keyed by their Veezi identifier, soonest first.
+	 * @param array<string,Film>     $films          Keyed by their Veezi identifier.
+	 * @param array<int,Session>     $sessions       Keyed by their Veezi identifier, soonest first.
+	 * @param DateTimeImmutable|null $announce_until The last moment a planned screening may
+	 *                                               start at and still be published; null when
+	 *                                               the cinema has not asked for any of it.
 	 */
 	private function __construct(
 		array $films,
-		private readonly array $sessions
+		private readonly array $sessions,
+		private readonly ?DateTimeImmutable $announce_until
 	) {
 		$remaining = array();
 		$soonest   = array();
 		$selling   = array();
+		$announced = array();
 
 		// Answered by looking at every session rather than by trusting the one
 		// that happens to be first: the sessions do arrive sorted, but a fact
@@ -86,6 +99,7 @@ final class Programme {
 
 			$remaining[ $film_id ] = ( $remaining[ $film_id ] ?? 0 ) + 1;
 			$selling[ $film_id ]   = ( $selling[ $film_id ] ?? false ) || $session->on_sale;
+			$announced[ $film_id ] = ( $announced[ $film_id ] ?? false ) || $this->is_announced( $session );
 
 			if ( ! isset( $soonest[ $film_id ] ) || $session->starts_at < $soonest[ $film_id ] ) {
 				$soonest[ $film_id ] = $session->starts_at;
@@ -95,6 +109,7 @@ final class Programme {
 		$this->remaining = $remaining;
 		$this->soonest   = $soonest;
 		$this->selling   = $selling;
+		$this->announced = $announced;
 
 		// Every film here has at least one session — that is what put it here.
 		uasort(
@@ -118,8 +133,10 @@ final class Programme {
 	 * @param array<int,mixed>  $films        Whatever `/v4/film` returned.
 	 * @param DateTimeZone      $zone         The cinema's timezone.
 	 * @param DateTimeImmutable $now          The moment the sync is running at.
+	 * @param ComingSoon        $coming_soon  How far ahead the cinema is willing
+	 *                                        to talk about, if at all.
 	 */
-	public static function assemble( array $sessions, array $web_sessions, array $films, DateTimeZone $zone, DateTimeImmutable $now ): self {
+	public static function assemble( array $sessions, array $web_sessions, array $films, DateTimeZone $zone, DateTimeImmutable $now, ComingSoon $coming_soon ): self {
 		$booking_urls = self::booking_urls( $web_sessions );
 
 		$assembled = array();
@@ -154,7 +171,11 @@ final class Programme {
 			}
 		);
 
-		return new self( self::scheduled_films( $films, $assembled ), $assembled );
+		return new self(
+			self::scheduled_films( $films, $assembled ),
+			$assembled,
+			$coming_soon->horizon( $now, $zone )
+		);
 	}
 
 	/**
@@ -172,18 +193,54 @@ final class Programme {
 	}
 
 	/**
-	 * Whether a visitor can buy a ticket for this film.
-	 *
-	 * One question, answering two: whether the film's page is published, since a
-	 * film known only from planned sessions is programming the cinema may not
-	 * have announced; and whether it belongs in the current listing. Those two
-	 * had separate answers while the programme still held screenings that had
-	 * been and gone. It does not, so they do not.
+	 * Whether a visitor can buy a ticket for this film, which is also whether it
+	 * belongs in the current listing. Those two had separate answers while the
+	 * programme still held screenings that had been and gone. It does not, so
+	 * they do not.
 	 *
 	 * @param string $film_id Its Veezi identifier.
 	 */
 	public function is_on_sale( string $film_id ): bool {
 		return $this->selling[ $film_id ] ?? false;
+	}
+
+	/**
+	 * Whether this film has something scheduled that the cinema has chosen to
+	 * announce ahead of putting it on sale.
+	 *
+	 * Not the opposite of {@see self::is_on_sale()}: a film showing this week
+	 * with more dates announced for next month is both, and belongs in both
+	 * listings. A visitor reading only one of them would otherwise learn only
+	 * half of what the cinema has said.
+	 *
+	 * @param string $film_id Its Veezi identifier.
+	 */
+	public function is_coming_soon( string $film_id ): bool {
+		return $this->announced[ $film_id ] ?? false;
+	}
+
+	/**
+	 * Whether a visitor should be able to find this screening at all.
+	 *
+	 * Everything on sale, plus whatever planned programming the cinema has
+	 * asked to publish and the horizon reaches. Everything else is written down
+	 * as a draft: the record exists so that an administrator can see what Veezi
+	 * holds and so that moving the horizon publishes it without waiting for the
+	 * next thing to change upstream, but no query a visitor triggers finds it.
+	 *
+	 * @param Session $session One of this programme's screenings.
+	 */
+	public function is_published( Session $session ): bool {
+		return $session->on_sale || $this->is_announced( $session );
+	}
+
+	/**
+	 * @param Session $session One of this programme's screenings.
+	 */
+	private function is_announced( Session $session ): bool {
+		return ! $session->on_sale
+			&& null !== $this->announce_until
+			&& $session->starts_at <= $this->announce_until;
 	}
 
 	/**

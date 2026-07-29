@@ -181,6 +181,53 @@ final class SettingsPageTest extends TestCase {
 		$this->assertStringContainsString( 'Saved Templates', $html );
 	}
 
+	/**
+	 * Criterion: the settings screen states plainly that enabling coming-soon
+	 * publication publishes programming that may not yet be announced, and that
+	 * planned times can still change.
+	 *
+	 * Both, in words, next to the switch — not in the README, which the person
+	 * flicking it will not have read. The words are asserted rather than the
+	 * fact that some paragraph exists, because a warning that got shortened
+	 * into meaninglessness would still be a paragraph.
+	 */
+	public function test_the_screen_says_what_publishing_what_is_coming_costs(): void {
+		$this->become_administrator();
+
+		$html = $this->render( array( $this->page, 'render_coming_soon_intro' ) );
+
+		$this->assertStringContainsString( 'may not have been announced', $html );
+		$this->assertStringContainsString( 'can still move or be dropped', $html );
+	}
+
+	public function test_the_screen_offers_the_switch_and_the_horizon(): void {
+		$this->become_administrator();
+
+		$this->assertStringContainsString(
+			'type="checkbox"',
+			$this->render( array( $this->page, 'render_coming_soon_field' ) )
+		);
+		$this->assertStringContainsString(
+			'value="14"',
+			$this->render( array( $this->page, 'render_coming_soon_days_field' ) )
+		);
+	}
+
+	/**
+	 * A checkbox rendered unticked whatever is stored is the settings bug that
+	 * costs an afternoon: it reads as "off", and saving anything else on the
+	 * screen then genuinely turns it off.
+	 */
+	public function test_the_switch_shows_the_position_it_is_actually_in(): void {
+		$this->become_administrator();
+		( new Settings() )->update( array( Settings::COMING_SOON_FIELD => true ) );
+
+		$this->assertStringContainsString(
+			'checked',
+			$this->render( array( $this->page, 'render_coming_soon_field' ) )
+		);
+	}
+
 	public function test_the_screen_itself_is_closed_to_anyone_without_permission(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
 

@@ -569,8 +569,15 @@ abstract class TestCase extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * Merged rather than written over the top, because {@see self::sync_at()}
+	 * calls this before every run — and a test that had configured anything
+	 * else would silently lose it on the way into the sync it was configuring.
+	 *
+	 * @param string $token The token to save.
+	 */
 	protected function store_token( string $token ): void {
-		update_option( Settings::OPTION, array( 'token' => $token ) );
+		( new Settings() )->update( array( 'token' => $token ) );
 	}
 
 	/**

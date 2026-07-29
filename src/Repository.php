@@ -87,6 +87,17 @@ final class Repository {
 	}
 
 	private function store_film( Film $film, Programme $programme, int $rank, int $post_id ): int {
+		$on_sale     = $programme->is_on_sale( $film->id );
+		$coming_soon = $programme->is_coming_soon( $film->id );
+
+		// Never un-publish a film that has been on sale. Its address may be in
+		// somebody's inbox or a search index, and ticket 08's promise is that
+		// the link keeps working after the season ends. A film published only
+		// because coming-soon publication is switched on has no such promise —
+		// that switch has to be reversible — which is the whole reason the two
+		// are told apart.
+		$keeps_its_page = $this->keeps_its_page( $post_id );
+
 		$post = array(
 			'post_type'    => ContentModel::FILM,
 			'post_title'   => $this->as_plain_text( $film->title ),
@@ -100,16 +111,10 @@ final class Repository {
 			'post_content' => wp_kses_post( $film->synopsis ),
 
 			// A film nobody can buy a ticket for yet is programming that may
-			// not have been announced, so it is written down but not published.
-			'post_status'  => $programme->is_on_sale( $film->id ) ? 'publish' : 'draft',
+			// not have been announced, so it is written down but not published
+			// until the cinema says otherwise.
+			'post_status'  => $on_sale || $coming_soon || $keeps_its_page ? 'publish' : 'draft',
 		);
-
-		// Never un-publish. Once a film has been on sale its address may be in
-		// somebody's inbox or a search index, and ticket 08's promise is that
-		// the link keeps working after the season ends.
-		if ( 0 !== $post_id && 'publish' === get_post_status( $post_id ) ) {
-			$post['post_status'] = 'publish';
-		}
 
 		$post_id = $this->upsert( $post_id, $post );
 
@@ -122,16 +127,21 @@ final class Repository {
 		$this->write_meta(
 			$post_id,
 			array(
-				ContentModel::FILM_ID             => $film->id,
-				ContentModel::FILM_RUNTIME        => (string) $film->runtime,
-				ContentModel::FILM_DISTRIBUTOR    => $film->distributor,
-				ContentModel::FILM_RELEASED       => $film->released_on,
-				ContentModel::FILM_TRAILER        => $film->trailer_url,
-				ContentModel::FILM_PEOPLE         => Person::encode( $film->people ),
-				ContentModel::FILM_NEXT_SCREENING => null === $next_screening
+				ContentModel::FILM_ID               => $film->id,
+				ContentModel::FILM_RUNTIME          => (string) $film->runtime,
+				ContentModel::FILM_DISTRIBUTOR      => $film->distributor,
+				ContentModel::FILM_RELEASED         => $film->released_on,
+				ContentModel::FILM_TRAILER          => $film->trailer_url,
+				ContentModel::FILM_PEOPLE           => Person::encode( $film->people ),
+				ContentModel::FILM_NEXT_SCREENING   => null === $next_screening
 					? ''
 					: (string) $next_screening->getTimestamp(),
-				ContentModel::FILM_SESSION_COUNT  => (string) $programme->session_count( $film->id ),
+				ContentModel::FILM_SESSION_COUNT    => (string) $programme->session_count( $film->id ),
+
+				// Set for as long as this record would have nothing published
+				// about it were the switch moved back, and cleared for good the
+				// moment a ticket can be bought.
+				ContentModel::FILM_COMING_SOON_ONLY => $on_sale || $keeps_its_page ? '' : '1',
 			)
 		);
 
@@ -141,17 +151,54 @@ final class Repository {
 			'' === $film->classification ? array() : array( $film->classification ),
 			ContentModel::CLASSIFICATION
 		);
-		wp_set_object_terms(
-			$post_id,
-			$programme->is_on_sale( $film->id )
-				? array( ContentModel::listing_term( ContentModel::NOW_SHOWING ) )
-				: array(),
-			ContentModel::LISTING
-		);
+		wp_set_object_terms( $post_id, $this->listings( $on_sale, $coming_soon ), ContentModel::LISTING );
 
 		$this->posters->attach( $post_id, $film );
 
 		return $post_id;
+	}
+
+	/**
+	 * Which listings a film belongs in.
+	 *
+	 * Both is an ordinary answer, not an edge case: a film showing this week
+	 * with more dates announced for next month is in the current programme and
+	 * in what is coming. Neither is also ordinary — that is a film whose season
+	 * has ended, or one nobody has decided to talk about yet.
+	 *
+	 * @param  bool $on_sale     Whether a ticket can be bought for it.
+	 * @param  bool $coming_soon Whether something of it has been announced ahead
+	 *                           of going on sale.
+	 * @return array<int,int> Term ids, made on demand.
+	 */
+	private function listings( bool $on_sale, bool $coming_soon ): array {
+		$listings = array();
+
+		if ( $on_sale ) {
+			$listings[] = ContentModel::listing_term( ContentModel::NOW_SHOWING );
+		}
+
+		if ( $coming_soon ) {
+			$listings[] = ContentModel::listing_term( ContentModel::COMING_SOON );
+		}
+
+		return $listings;
+	}
+
+	/**
+	 * Whether this film's page outlives whatever the cinema does with the
+	 * coming-soon switch — which it does once it has been on sale, and not
+	 * before.
+	 *
+	 * Read from what is stored rather than from what is about to be, so it has
+	 * to be asked before {@see self::store_film()} writes the mark again.
+	 *
+	 * @param int $post_id Zero for a film not stored yet.
+	 */
+	private function keeps_its_page( int $post_id ): bool {
+		return 0 !== $post_id
+			&& 'publish' === get_post_status( $post_id )
+			&& '1' !== (string) get_post_meta( $post_id, ContentModel::FILM_COMING_SOON_ONLY, true );
 	}
 
 	/**
@@ -167,6 +214,7 @@ final class Repository {
 
 			$this->store_session(
 				$session,
+				$programme->is_published( $session ),
 				$film_posts[ $session->film_id ] ?? 0,
 				$rank,
 				$existing[ (string) $session->id ] ?? 0
@@ -174,14 +222,23 @@ final class Repository {
 		}
 	}
 
-	private function store_session( Session $session, int $film_post, int $rank, int $post_id ): void {
+	/**
+	 * @param Session $session   One screening, as Veezi describes it.
+	 * @param bool    $published Whether a visitor should be able to find it —
+	 *                           on sale, or announced and inside the horizon.
+	 * @param int     $film_post The film it belongs to, zero if the catalogue
+	 *                           has never heard of it.
+	 * @param int     $rank      Its position in the chronological order.
+	 * @param int     $post_id   Zero for a screening not stored yet.
+	 */
+	private function store_session( Session $session, bool $published, int $film_post, int $rank, int $post_id ): void {
 		$starts_text = $this->in_words( $session->starts_at );
 		$title       = $this->as_plain_text( $session->title );
 
 		$post = array(
 			'post_type'   => ContentModel::SESSION,
 			'post_title'  => '' === $title ? $starts_text : sprintf( '%s — %s', $title, $starts_text ),
-			'post_status' => $session->on_sale ? 'publish' : 'draft',
+			'post_status' => $published ? 'publish' : 'draft',
 			'menu_order'  => $rank,
 		);
 
@@ -201,7 +258,9 @@ final class Repository {
 				ContentModel::SESSION_STARTS_TEXT => $starts_text,
 				ContentModel::SESSION_ENDS_TEXT   => $this->in_words( $session->ends_at ),
 				ContentModel::SESSION_BOOKING     => $session->booking_url,
-				ContentModel::SESSION_STATUS      => $session->on_sale ? 'open' : 'planned',
+				ContentModel::SESSION_STATUS      => $session->on_sale
+					? ContentModel::STATUS_ON_SALE
+					: ContentModel::STATUS_PLANNED,
 				ContentModel::SESSION_SOLD_OUT    => $session->sold_out ? '1' : '',
 				ContentModel::SESSION_FEW_LEFT    => $session->few_tickets_left ? '1' : '',
 			)
@@ -257,13 +316,21 @@ final class Repository {
 			// what stops this rewriting ranks for ever.
 			++$rank;
 
-			$this->upsert(
-				$post_id,
-				array(
-					'post_type'  => ContentModel::FILM,
-					'menu_order' => $rank,
-				)
+			$film = array(
+				'post_type'  => ContentModel::FILM,
+				'menu_order' => $rank,
 			);
+
+			// A film published only because it was announced, and then dropped
+			// from the schedule altogether, is an announcement of something
+			// that is not happening. It goes back to a draft — which is the
+			// same promise the switch makes, kept when Veezi is the one who
+			// changed its mind. A film that has been on sale keeps its page.
+			if ( '1' === (string) get_post_meta( $post_id, ContentModel::FILM_COMING_SOON_ONLY, true ) ) {
+				$film['post_status'] = 'draft';
+			}
+
+			$this->upsert( $post_id, $film );
 
 			wp_set_object_terms( $post_id, array(), ContentModel::LISTING );
 			$this->write_meta(

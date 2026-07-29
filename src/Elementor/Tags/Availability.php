@@ -11,12 +11,13 @@ namespace Veezi\WordPress\Elementor\Tags;
 
 use Elementor\Controls_Manager;
 use Elementor\Modules\DynamicTags\Module;
+use Veezi\WordPress\Presentation\Badges;
 use Veezi\WordPress\Presentation\Fields;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * "Sold out", "Few tickets left", or nothing at all.
+ * "Sold out", "Few tickets left", "On sale soon", or nothing at all.
  *
  * The same badge {@see \Veezi\WordPress\Elementor\Widgets\SessionTimes} renders
  * inside a card, offered as a field — because a chronological listing is built
@@ -71,13 +72,20 @@ final class Availability extends Tag {
 				'ai'      => array( 'active' => false ),
 			)
 		);
+
+		$this->add_control(
+			'on_sale_soon_text',
+			array(
+				'label'       => esc_html__( 'Not on sale yet reads', 'veezi-wordpress-plugin' ),
+				'type'        => Controls_Manager::TEXT,
+				'default'     => __( 'On sale soon', 'veezi-wordpress-plugin' ),
+				'description' => esc_html__( 'Only ever seen where Settings → Veezi has been asked to publish what is coming.', 'veezi-wordpress-plugin' ),
+				'ai'          => array( 'active' => false ),
+			)
+		);
 	}
 
 	protected function value(): string {
-		return Fields::availability(
-			$this->current_post(),
-			(string) $this->get_settings( 'sold_out_text' ),
-			(string) $this->get_settings( 'few_left_text' )
-		);
+		return Fields::availability( $this->current_post(), Badges::from_settings( $this->get_settings() ) );
 	}
 }

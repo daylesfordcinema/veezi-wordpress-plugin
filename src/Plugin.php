@@ -64,7 +64,7 @@ final class Plugin {
 	}
 
 	public function sync(): Sync {
-		return new Sync( $this->client() );
+		return new Sync( $this->client(), $this->settings );
 	}
 
 	/**
