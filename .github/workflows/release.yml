@@ -132,10 +132,10 @@ jobs:
   ## whole thing is still the tag-only workflow no outside contributor can reach.
   ##
   ## Nothing about the server is written here, because this file is public. The
-  ## host, the account, the path and the key are the `production` environment's
-  ## secrets, set once in repository settings; docs/deploying.md lists them, and
-  ## that environment is also where a required reviewer can hold a deploy for a
-  ## human's yes. The server runbook is in the private repository.
+  ## host, the account, the path and the password are the `production`
+  ## environment's secrets, set once in repository settings; docs/deploying.md
+  ## lists them, and that environment is also where a required reviewer can hold
+  ## a deploy for a human's yes. The server runbook is in the private repository.
   deploy:
     name: Deploy to production
     needs: package
@@ -157,27 +157,12 @@ jobs:
       contents: read
 
     steps:
-      ## Key-based auth from a deploy key minted in the hosting panel. The host
-      ## allows no key we can install ourselves and runs intrusion protection,
-      ## so a password on a retry loop risks getting the runner banned; a single
-      ## keyed connection carries the whole deploy as one authentication. The
-      ## key arrives as env and is written out as data with printf, so the one
-      ## piece of free-form secret material here is never parsed as shell.
-      ##
-      ## The host key is not pinned. The connection below accepts it on first
-      ## sight (`accept-new`), and a fresh runner makes every deploy a first
-      ## sight — so this is trust-on-first-use each run, not a pinned identity.
-      ## A deliberate trade: one fewer secret to carry, some man-in-the-middle
-      ## protection given up. docs/deploying.md says so plainly.
-      - name: Write the deploy key
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"
-          chmod 600 "$HOME/.ssh/deploy_key"
+      ## Password auth, the way the host actually offers it — the same method
+      ## bin/ssh-cinema-wp.sh already uses: sshpass feeding one password to one
+      ## connection, with pubkey auth turned off so ssh does not first offer a
+      ## key that is not there. The client is not on the runner by default.
+      - name: Install the SSH password client
+        run: sudo apt-get update && sudo apt-get install -y sshpass
 
       ## Everything the server does, in one connection. The remote script is
       ## fed on stdin with a quoted heredoc, so the runner does not expand it;
@@ -185,11 +170,20 @@ jobs:
       ## Those values — the slug, the tag-derived version, the asset URL built
       ## from them, and the WordPress path from a secret — are fixed or already
       ## validated (package checked the tag against the declared version), not
-      ## anything a stranger supplies, so single-quoting them is enough. The one
-      ## free-form secret, the key, is not among them: it was written as data
-      ## above and never reaches a command line.
+      ## anything a stranger supplies, so single-quoting them is enough.
+      ##
+      ## The password is the one free-form secret. sshpass reads it from the
+      ## SSHPASS env var (-e), so it never appears on a command line, in a file,
+      ## or in the log, and is never parsed as shell. The host runs intrusion
+      ## protection, so this is exactly one attempt: NumberOfPasswordPrompts=1
+      ## means a wrong password fails once rather than retrying into a ban, and
+      ## nothing here loops. The host key is not pinned — accept-new trusts it on
+      ## first sight, which on a fresh runner is trust-on-first-use each run, a
+      ## deliberate trade of some man-in-the-middle protection. See
+      ## docs/deploying.md.
       - name: Install this release and prove it took
         env:
+          SSHPASS: ${{ secrets.DEPLOY_SSH_PASSWORD }}
           SSH_HOST: ${{ secrets.DEPLOY_HOST }}
           SSH_USER: ${{ secrets.DEPLOY_USER }}
           SSH_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -205,9 +199,10 @@ jobs:
           version="${TAG#v}"
           asset="https://github.com/$REPO/releases/download/$TAG/$SLUG-$version.zip"
 
-          ssh -i "$HOME/.ssh/deploy_key" \
-              -o IdentitiesOnly=yes \
-              -o BatchMode=yes \
+          sshpass -e ssh \
+              -o PubkeyAuthentication=no \
+              -o PreferredAuthentications=password \
+              -o NumberOfPasswordPrompts=1 \
               -o StrictHostKeyChecking=accept-new \
               -p "${SSH_PORT:-22}" \
               "$SSH_USER@$SSH_HOST" \
@@ -257,7 +252,3 @@ jobs:
           wp breeze purge --cache=all \
             || echo "Warning: page-cache purge failed; it will expire on its own." >&2
           REMOTE
-
-      - name: Remove the key
-        if: always()
-        run: rm -f "$HOME/.ssh/deploy_key"
