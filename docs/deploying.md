@@ -39,25 +39,33 @@ secrets:
 | `DEPLOY_USER` | The SSH account to log in as |
 | `DEPLOY_PORT` | The SSH port (optional; defaults to `22`) |
 | `DEPLOY_PATH` | The WordPress root to run `wp` in |
-| `DEPLOY_SSH_KEY` | The private half of a deploy key the server accepts |
+| `DEPLOY_SSH_PASSWORD` | The SSH password for that account |
 
 Add a **required reviewer** to the same environment if you want a deploy to wait
 for a human's yes before it touches the site. The environment is the natural
 place for that gate; nothing else in the pipeline stops between a green suite and
 a live install.
 
-Authentication is key-based, over a single connection. The host allows no key we
-can install ourselves and runs intrusion protection, so the key has to come from
-the hosting panel, and the deploy avoids anything — a password prompt, a retry
-loop — that a lock-out would punish.
+Authentication is **password-based**, over a single connection — the method the
+host offers by default and the one the project already uses to reach it. The
+password comes from the hosting panel and lives only in the `DEPLOY_SSH_PASSWORD`
+secret; the deploy feeds it to `sshpass` through an environment variable, so it
+never reaches a command line, a file, or the log. The host runs intrusion
+protection, so the deploy makes **exactly one** attempt (`NumberOfPasswordPrompts=1`)
+and never retries — a wrong password fails once rather than looping toward a
+lock-out.
+
+A password is a weaker credential than a key against brute force, which is why
+the connection is kept to a single, non-retrying attempt and the account should
+carry a long, random password. If you would rather use a key, the hosting panel
+can add one; switching the deploy back to key auth is a small change to the job.
 
 The server's host key is **not** pinned. The deploy accepts it on first sight
 (`accept-new`), and because each run is a fresh runner, that is trust-on-first-use
-every time rather than a fixed identity. It is a deliberate trade — one fewer
-secret to manage, in exchange for giving up protection against a man-in-the-middle
-on the deploy connection. If that protection matters more than the convenience,
-pin the key: capture it with `ssh-keyscan`, and have the deploy verify against it
-before connecting.
+every time rather than a fixed identity — a deliberate trade of some
+man-in-the-middle protection for one fewer secret to manage. To pin it instead,
+capture it with `ssh-keyscan` and have the deploy verify against it before
+connecting.
 
 ## What the deploy proves before it is done
 
