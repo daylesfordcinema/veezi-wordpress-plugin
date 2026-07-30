@@ -40,7 +40,6 @@ secrets:
 | `DEPLOY_PORT` | The SSH port (optional; defaults to `22`) |
 | `DEPLOY_PATH` | The WordPress root to run `wp` in |
 | `DEPLOY_SSH_KEY` | The private half of a deploy key the server accepts |
-| `DEPLOY_KNOWN_HOSTS` | The server's public host key, so its identity is pinned rather than trusted on first sight |
 
 Add a **required reviewer** to the same environment if you want a deploy to wait
 for a human's yes before it touches the site. The environment is the natural
@@ -51,6 +50,14 @@ Authentication is key-based, over a single connection. The host allows no key we
 can install ourselves and runs intrusion protection, so the key has to come from
 the hosting panel, and the deploy avoids anything — a password prompt, a retry
 loop — that a lock-out would punish.
+
+The server's host key is **not** pinned. The deploy accepts it on first sight
+(`accept-new`), and because each run is a fresh runner, that is trust-on-first-use
+every time rather than a fixed identity. It is a deliberate trade — one fewer
+secret to manage, in exchange for giving up protection against a man-in-the-middle
+on the deploy connection. If that protection matters more than the convenience,
+pin the key: capture it with `ssh-keyscan`, and have the deploy verify against it
+before connecting.
 
 ## What the deploy proves before it is done
 
