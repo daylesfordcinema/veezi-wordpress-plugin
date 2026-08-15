@@ -22,11 +22,18 @@ defined( 'ABSPATH' ) || exit;
  * and a card is built long before anybody knows which of its fields a given
  * film will turn out to have.
  *
- * Three of them answer for either kind of record. On a screening they describe
- * that screening; on a film they describe one of its screenings, because a card
- * for a film still wants a time, a button and a word about the seats — and it is
+ * **Every one of them answers for either kind of record**, in the direction that
+ * makes sense for it. The ones describing a screening — a time, a button, a word
+ * about the seats — answer for a film by picking one of its screenings, and it is
  * the **same** screening for all three, so that a card cannot headline Saturday
- * and sell Sunday.
+ * and sell Sunday. The ones describing a film — its poster, runtime, rating,
+ * genre, credits and trailer — answer for a screening by looking up the film it
+ * screens, {@see self::film_for()}.
+ *
+ * That second direction is what lets a chronological listing be more than a list
+ * of times. The record being rendered there is the screening, but almost
+ * everything a visitor wants to read about it belongs to the film, and a row that
+ * could not reach it left a designer choosing between a calendar and a card.
  */
 final class Fields {
 
@@ -34,26 +41,26 @@ final class Fields {
 	 * In minutes, as a bare number: a designer adds "min" with the tag's own
 	 * After control rather than being given a unit they cannot change.
 	 *
-	 * @param int $post_id A film record.
+	 * @param int $post_id A film or a session record.
 	 */
 	public static function runtime( int $post_id ): string {
-		$minutes = (int) get_post_meta( $post_id, ContentModel::FILM_RUNTIME, true );
+		$minutes = (int) get_post_meta( self::film_for( $post_id ), ContentModel::FILM_RUNTIME, true );
 
 		return $minutes > 0 ? (string) $minutes : '';
 	}
 
 	/**
-	 * @param int $post_id A film record.
+	 * @param int $post_id A film or a session record.
 	 */
 	public static function classification( int $post_id ): string {
-		return self::filed_under( $post_id, ContentModel::CLASSIFICATION );
+		return self::filed_under( self::film_for( $post_id ), ContentModel::CLASSIFICATION );
 	}
 
 	/**
-	 * @param int $post_id A film record.
+	 * @param int $post_id A film or a session record.
 	 */
 	public static function genre( int $post_id ): string {
-		return self::filed_under( $post_id, ContentModel::GENRE );
+		return self::filed_under( self::film_for( $post_id ), ContentModel::GENRE );
 	}
 
 	/**
@@ -69,11 +76,11 @@ final class Fields {
 	 * these runs to several megabytes. WordPress hands back the original anyway
 	 * if the artwork was too small to make a card size from.
 	 *
-	 * @param  int $post_id A film record.
+	 * @param  int $post_id A film or a session record.
 	 * @return array{id:int,url:string}
 	 */
 	public static function poster( int $post_id ): array {
-		$attachment = (int) get_post_thumbnail_id( $post_id );
+		$attachment = (int) get_post_thumbnail_id( self::film_for( $post_id ) );
 
 		if ( 0 === $attachment ) {
 			return array(
@@ -91,19 +98,19 @@ final class Fields {
 	/**
 	 * Who worked on the film, and what they did.
 	 *
-	 * @param int    $post_id A film record.
+	 * @param int    $post_id A film or a session record.
 	 * @param string $role    One of {@see \Veezi\WordPress\Person::ROLES}, or an
 	 *                        empty string for everybody.
 	 */
 	public static function cast_and_crew( int $post_id, string $role = '' ): string {
-		return Credits::for_film( $post_id )->in_words( $role );
+		return Credits::for_film( self::film_for( $post_id ) )->in_words( $role );
 	}
 
 	/**
-	 * @param int $post_id A film record.
+	 * @param int $post_id A film or a session record.
 	 */
 	public static function trailer_url( int $post_id ): string {
-		return (string) get_post_meta( $post_id, ContentModel::FILM_TRAILER, true );
+		return (string) get_post_meta( self::film_for( $post_id ), ContentModel::FILM_TRAILER, true );
 	}
 
 	/**
@@ -156,9 +163,7 @@ final class Fields {
 	 * @param int $post_id A film or a session record.
 	 */
 	public static function film_title( int $post_id ): string {
-		$film = self::is_screening( $post_id )
-			? (int) get_post_meta( $post_id, ContentModel::SESSION_FILM, true )
-			: $post_id;
+		$film = self::film_for( $post_id );
 
 		return $film > 0 ? get_the_title( $film ) : '';
 	}
@@ -204,6 +209,29 @@ final class Fields {
 	}
 
 	/**
+	 * Which film a record is about.
+	 *
+	 * On a film, itself. On a screening, the film it screens — read from the
+	 * relation the sync maintains rather than from the record's own fields,
+	 * which carry none of this.
+	 *
+	 * Zero when a screening has no film the site knows about. That is a real
+	 * state rather than a defensive one: the sync stores a screening whether or
+	 * not the catalogue admitted to the film, so that a listing is never
+	 * silently short. Every caller below treats zero as "nothing to show",
+	 * which is what each of them does for a film missing that field anyway.
+	 *
+	 * @param int $post_id A film or a session record.
+	 */
+	private static function film_for( int $post_id ): int {
+		if ( ! self::is_screening( $post_id ) ) {
+			return $post_id;
+		}
+
+		return (int) get_post_meta( $post_id, ContentModel::SESSION_FILM, true );
+	}
+
+	/**
 	 * The terms a film is filed under, written out.
 	 *
 	 * Read from the taxonomy rather than from anything Veezi sent, so that a
@@ -215,6 +243,13 @@ final class Fields {
 	 * @param string $taxonomy Which classification.
 	 */
 	private static function filed_under( int $post_id, string $taxonomy ): string {
+		// Asked before WordPress is, because a screening whose film the site
+		// does not have arrives here as zero, and that is a question about no
+		// object rather than a malformed one.
+		if ( $post_id <= 0 ) {
+			return '';
+		}
+
 		$names = wp_get_object_terms( $post_id, $taxonomy, array( 'fields' => 'names' ) );
 
 		if ( is_wp_error( $names ) ) {

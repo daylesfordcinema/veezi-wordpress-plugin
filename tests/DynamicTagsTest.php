@@ -176,6 +176,65 @@ final class DynamicTagsTest extends TestCase {
 		);
 	}
 
+	/**
+	 * And the film's own fields on that same row, read through the relation the
+	 * sync maintains.
+	 *
+	 * Without this a chronological listing is a list of times: the record being
+	 * looped over is the screening, and everything a visitor recognises a film
+	 * by — its poster above all — belongs to the film. A row that could not
+	 * reach it left a designer choosing between a calendar and a card.
+	 */
+	public function test_a_session_row_binds_the_details_of_the_film_it_screens(): void {
+		$this->synced();
+
+		$session = $this->session_record( 1001 );
+		$film    = $this->film_record( 'film-cook' );
+
+		$this->assertSame( '100', $this->bound( 'veezi-runtime', $session ) );
+		$this->assertSame( 'PG', $this->bound( 'veezi-classification', $session ) );
+		$this->assertSame( 'Comedy, Drama', $this->bound( 'veezi-genre', $session ) );
+		$this->assertSame(
+			$this->bound( 'veezi-cast-and-crew', $film ),
+			$this->bound( 'veezi-cast-and-crew', $session )
+		);
+		$this->assertStringContainsString( 'Ada Vaughan', $this->bound( 'veezi-cast-and-crew', $session ) );
+		$this->assertSame(
+			$this->bound( 'veezi-trailer-url', $film ),
+			$this->bound( 'veezi-trailer-url', $session )
+		);
+
+		// The one that is not a string: an image control wants the attachment
+		// id, and the row has to hand it the film's rather than nothing.
+		$this->assertSame( $this->bound( 'veezi-poster', $film ), $this->bound( 'veezi-poster', $session ) );
+		$this->assertGreaterThan( 0, $this->bound( 'veezi-poster', $session )['id'] );
+	}
+
+	/**
+	 * A screening whose film the catalogue never admitted to. The sync stores it
+	 * anyway rather than leaving a listing silently short, so the relation
+	 * points at nothing and every one of these has to come back empty-handed
+	 * instead of throwing on a page a visitor is loading.
+	 */
+	public function test_a_session_whose_film_is_unknown_resolves_to_nothing(): void {
+		$this->arrange_programme( array( $this->session_payload() ), array() );
+		$this->sync_at();
+
+		$session = $this->session_record( 1001 );
+
+		foreach ( array( 'veezi-runtime', 'veezi-classification', 'veezi-genre', 'veezi-trailer-url', 'veezi-cast-and-crew' ) as $tag ) {
+			$this->assertSame( '', $this->bound( $tag, $session ), "{$tag} should resolve to nothing." );
+		}
+
+		$this->assertSame(
+			array(
+				'id'  => 0,
+				'url' => '',
+			),
+			$this->bound( 'veezi-poster', $session )
+		);
+	}
+
 	public function test_a_sold_out_session_offers_no_booking_link(): void {
 		$this->synced( array(), array( 'TicketsSoldOut' => true ) );
 
