@@ -36,6 +36,17 @@ abstract class TestCase extends WP_UnitTestCase {
 	protected const TOKEN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 	/**
+	 * The instant every test starts from, in UTC.
+	 *
+	 * Chosen to sit inside the week the fixtures describe: after nothing, and
+	 * before {@see self::session_payload()}'s default screening, so that the
+	 * default programme is still to come. Every date in this suite is written
+	 * out in full rather than derived from the real clock, and this is what
+	 * makes that safe.
+	 */
+	protected const PRESENT = '2026-08-01 00:00:00';
+
+	/**
 	 * Where {@see self::film_payload()} says its artwork is. Named here so a
 	 * test arranging different bytes for it cannot drift from the payload.
 	 */
@@ -52,8 +63,28 @@ abstract class TestCase extends WP_UnitTestCase {
 
 	private string $log_setting_before = '';
 
+	/**
+	 * What the front end treats as now, for the duration of one test.
+	 *
+	 * The fixtures describe a fixed week — a programme around the beginning of
+	 * August 2026 — and the sync is always run at a moment the test names. The
+	 * page load had no such moment: it read the wall clock, so every assertion
+	 * about a screening being still to come was true only while that week was
+	 * still ahead, and the suite began failing on a date nobody chose rather
+	 * than because of a change anybody made.
+	 *
+	 * Pinned here to the same instant {@see self::sync_at()} defaults to, and
+	 * moved with it, so that the sync and the page load share one present.
+	 *
+	 * @var int
+	 */
+	protected int $now;
+
 	public function set_up(): void {
 		parent::set_up();
+
+		$this->travel_to( self::PRESENT );
+		add_filter( 'veezi_now', fn (): int => $this->now );
 
 		// add_settings_error() appends to a global that WordPress's own test
 		// case does not reset, so without this a test would see the notices
@@ -337,12 +368,32 @@ abstract class TestCase extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Move what the front end treats as now.
+	 *
+	 * @param  string $moment Any datetime `DateTimeImmutable` accepts, in UTC.
+	 * @return int    The same instant as an epoch second, for arranging records
+	 *                relative to it.
+	 */
+	protected function travel_to( string $moment ): int {
+		$this->now = ( new DateTimeImmutable( $moment, new DateTimeZone( 'UTC' ) ) )->getTimestamp();
+
+		return $this->now;
+	}
+
+	/**
 	 * Run a whole sync, at a moment of the test's choosing.
 	 *
 	 * @param string $moment When the run happens, in UTC — every date the sync
 	 *                       decides anything by is relative to this.
 	 */
-	protected function sync_at( string $moment = '2026-08-01 00:00:00' ): SyncResult {
+	protected function sync_at( string $moment = self::PRESENT ): SyncResult {
+		// The page load and the sync share one present. On a real site they do
+		// not — a visitor arrives some minutes after the run — but every test
+		// that cares about the gap arranges it explicitly by moving a record or
+		// the clock, and a default that drifted would put an unnamed interval
+		// into every other test.
+		$this->travel_to( $moment );
+
 		$this->store_token( self::TOKEN );
 
 		// Each sync in a test is a fresh look at whatever that test has just

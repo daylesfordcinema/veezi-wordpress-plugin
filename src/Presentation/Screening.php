@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Veezi\WordPress\Presentation;
 
 use Veezi\WordPress\CinemaTimezone;
+use Veezi\WordPress\Clock;
 use Veezi\WordPress\ContentModel;
 
 defined( 'ABSPATH' ) || exit;
@@ -217,7 +218,7 @@ final class Screening {
 	 * sync runs hourly and this changes every minute.
 	 */
 	public function has_started(): bool {
-		return $this->starts_at <= time();
+		return $this->starts_at <= Clock::now();
 	}
 
 	/**
