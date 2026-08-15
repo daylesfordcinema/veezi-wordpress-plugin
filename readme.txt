@@ -4,7 +4,7 @@ Tags: cinema, veezi, showtimes, film, elementor
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.2
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -203,6 +203,14 @@ The plugin's README has the snippet.
 No — the next sync will write over your changes. Change it in Veezi instead.
 
 == Changelog ==
+
+= 0.2.0 =
+* Fixed: Sessions can now be chosen as the source of a loop grid, so the
+  chronological "what's on" listing can be built. It could not be before —
+  the post type was missing from the builder's Source control, and a listing
+  built over Films instead shows only each film's next screening.
+* Added: a `veezi_now` filter for the moment the front end treats as the
+  present, which is what decides whether a screening has begun.
 
 = 0.1.0 =
 * Syncs films and screenings from Veezi hourly, with posters copied into the
