@@ -48,15 +48,34 @@ final class ContentModelTest extends TestCase {
 
 	/**
 	 * The chronological listing is built by pointing the page builder's loop
-	 * widget at sessions, and that widget only offers post types registered as
-	 * public. Sessions are therefore public *and* unviewable: available to a
-	 * query, absent from the front end.
+	 * widget at sessions, so both post types have to appear in that widget's
+	 * Source control.
+	 *
+	 * Asserted the way Elementor Pro actually builds the list — `get_post_types(
+	 * array( 'show_in_nav_menus' => true ) )`, then its own filter over the
+	 * result — rather than against `public`, which is the belief this test used
+	 * to encode and which is not the flag Elementor reads. Sessions are public
+	 * and deliberately *not* in nav menus, so they were absent from the Source
+	 * control while this passed: the calendar could not be built, whoever built
+	 * it reached for films instead, and every screening after a film's first
+	 * went missing from the listing. {@see Elementor\Integration} puts them back.
+	 *
+	 * The names are Elementor's, so nothing here can prove they are still
+	 * current — Elementor Pro is commercial and cannot run in this suite. That
+	 * check is in `docs/pre-release-checklist.md` and needs a licensed replica.
 	 */
 	public function test_the_page_builder_can_list_both_films_and_sessions(): void {
-		$available = get_post_types( array( 'public' => true ) );
+		// The hook is Elementor's and is spelled the way Elementor spells it. The
+		// sniff is for hooks this project declares.
+		// phpcs:disable WordPress.NamingConventions.ValidHookName.UseUnderscores
+		$offered = apply_filters(
+			'elementor_pro/utils/get_public_post_types',
+			get_post_types( array( 'show_in_nav_menus' => true ) )
+		);
+		// phpcs:enable WordPress.NamingConventions.ValidHookName.UseUnderscores
 
-		$this->assertArrayHasKey( ContentModel::FILM, $available );
-		$this->assertArrayHasKey( ContentModel::SESSION, $available );
+		$this->assertArrayHasKey( ContentModel::FILM, $offered );
+		$this->assertArrayHasKey( ContentModel::SESSION, $offered );
 	}
 
 	public function test_films_can_be_browsed_by_genre_classification_and_listing(): void {

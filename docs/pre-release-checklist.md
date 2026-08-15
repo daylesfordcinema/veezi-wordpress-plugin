@@ -39,6 +39,16 @@ Against a site with the programme synced and at least one film screening.
       Order**, ascending. Films come out in the order they next screen. The rank
       itself is tested; that Pro's query control honours it is not.
 
+- [ ] **Sessions is in the loop grid's Source list.** Open the control and read
+      it. This is a precondition of the next check rather than part of it, and it
+      is here because it was once false while everything below still passed: Pro
+      builds that list from post types registered with `show_in_nav_menus`, which
+      sessions deliberately do not have, so the plugin has to name the post type
+      through `elementor_pro/utils/get_public_post_types`. When it is missing
+      there is no error — the calendar simply cannot be built, and whoever is in
+      the builder reaches for Films instead and gets one row per film rather than
+      one per screening. `ContentModelTest` pins our half; only this reads Pro's.
+
 - [ ] **A loop grid over Sessions renders the calendar.** Import
       `templates/session-row.json`, point a loop grid at Sessions with it as the
       item template and the query sorted by **Menu Order**. Every screening

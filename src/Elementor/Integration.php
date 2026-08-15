@@ -11,6 +11,7 @@ namespace Veezi\WordPress\Elementor;
 
 use Elementor\Core\DynamicTags\Manager as DynamicTags;
 use Elementor\Widgets_Manager;
+use Veezi\WordPress\ContentModel;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -61,6 +62,36 @@ final class Integration {
 		add_action( 'elementor/dynamic_tags/register', array( $this, 'register_tags' ) );
 		add_action( 'elementor/widgets/register', array( $this, 'register_widgets' ) );
 		add_action( 'elementor/frontend/after_register_styles', array( $this, 'register_styles' ) );
+		add_filter( 'elementor_pro/utils/get_public_post_types', array( $this, 'offer_sessions_as_a_loop_source' ) );
+	}
+
+	/**
+	 * Put Sessions in the loop widget's Source list.
+	 *
+	 * The chronological listing is a loop grid pointed at sessions, so the post
+	 * type has to be selectable in the builder. Elementor Pro builds that list
+	 * from post types registered with `show_in_nav_menus` — not, as the
+	 * registration in {@see ContentModel} long assumed, from `public` — and
+	 * sessions deliberately have it off: a session has no address of its own, so
+	 * a nav menu offering one would be offering a link to a 404.
+	 *
+	 * Naming the post type here rather than turning that flag on keeps both facts
+	 * true — the builder can list sessions, and nothing else can link to one.
+	 * Without it the calendar cannot be built at all: the Source control simply
+	 * does not offer sessions, and whoever is in the builder reaches for films
+	 * instead and gets one row per film rather than one per screening.
+	 *
+	 * @param  array<string,string> $post_types Label by post type name.
+	 * @return array<string,string>
+	 */
+	public function offer_sessions_as_a_loop_source( array $post_types ): array {
+		$session = get_post_type_object( ContentModel::SESSION );
+
+		if ( null !== $session ) {
+			$post_types[ ContentModel::SESSION ] = $session->label;
+		}
+
+		return $post_types;
 	}
 
 	/**
