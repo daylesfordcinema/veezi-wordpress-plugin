@@ -4,7 +4,7 @@ Tags: cinema, veezi, showtimes, film, elementor
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.2
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,7 +62,9 @@ when the cinema is between seasons.
 
 They read whichever record is being rendered, so the same card works inside a
 loop and on a film's own page with nothing to configure, and duplicating a
-template behaves exactly like the one you copied.
+template behaves exactly like the one you copied. All of them answer on both
+kinds of record, so a row of a "what's on" listing can carry the poster, rating
+and genre of the film it screens and not only its time.
 
 Three carry controls: Session Time takes a date format, Cast and Crew takes a
 role (director, screenwriter, producer or actor, or everyone), and Availability
@@ -203,6 +205,12 @@ The plugin's README has the snippet.
 No — the next sync will write over your changes. Change it in Veezi instead.
 
 == Changelog ==
+
+= 0.3.0 =
+* Changed: poster, runtime, classification, genre, cast and crew and trailer
+  link now resolve on a screening as well as on a film, reading the film that
+  screening is of. A row of a "what's on" listing can carry the poster and the
+  details rather than only a time and a booking link.
 
 = 0.2.0 =
 * Fixed: Sessions can now be chosen as the source of a loop grid, so the
