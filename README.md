@@ -128,12 +128,12 @@ Programme**. Bind them to ordinary widgets the way you'd bind any custom field.
 
 | Field | On a film | On a screening |
 |---|---|---|
-| **Poster** | the artwork from your media library | — |
-| **Runtime (minutes)** | a bare number — add "min" using the tag's own **After** box | — |
-| **Classification** | the rating | — |
-| **Genre** | every genre it's filed under | — |
-| **Cast and Crew** | everyone credited, or one role at a time | — |
-| **Trailer Link** | the trailer, in a form a video widget understands | — |
+| **Poster** | the artwork from your media library | the artwork of the film screening |
+| **Runtime (minutes)** | a bare number — add "min" using the tag's own **After** box | the same, for the film screening |
+| **Classification** | the rating | the rating of the film screening |
+| **Genre** | every genre it's filed under | the same, for the film screening |
+| **Cast and Crew** | everyone credited, or one role at a time | the same, for the film screening |
+| **Trailer Link** | the trailer, in a form a video widget understands | the trailer of the film screening |
 | **Film Title** | its own title | the title of the film screening |
 | **Session Time** | when it next screens | that screening's time |
 | **Availability** | "Sold out", "Few tickets left" or "On sale soon" | the same, for this one |
@@ -143,6 +143,13 @@ Programme**. Bind them to ordinary widgets the way you'd bind any custom field.
 They read **whichever record is being rendered**, so there's nothing to point at
 and nothing to configure — the same card works inside a loop and on a film's own
 page, and duplicating a template behaves exactly like the one you copied.
+
+Every field answers on both, so a row of a chronological listing can carry the
+poster, rating and genre of the film it screens rather than only a time and a
+link. Where a field has to pick — a film screens several times, and only one of
+those can be the headline — the time, the availability and the button all answer
+from the **same** screening, so a card can never headline Saturday and sell
+Sunday.
 
 Three of them have controls worth knowing about:
 
