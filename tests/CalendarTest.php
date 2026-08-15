@@ -43,14 +43,16 @@ final class CalendarTest extends TestCase {
 	/**
 	 * Move a screening back to a quarter of an hour ago.
 	 *
-	 * The clock the sync runs on is the test's to choose, but the clock a page
-	 * load reads is the real one — so a screening under way is arranged by
-	 * moving the record rather than the moment.
+	 * Relative to the test's present rather than to the wall clock: both the
+	 * sync and the page load run on the moment the test names, so a screening
+	 * under way has to be placed against that same moment. Arranged by moving
+	 * the record rather than the clock because the rest of the programme has to
+	 * stay where it is.
 	 *
 	 * @param int $session A session record.
 	 */
 	private function has_begun( int $session ): void {
-		update_post_meta( $session, ContentModel::SESSION_STARTS, (string) ( time() - 15 * MINUTE_IN_SECONDS ) );
+		update_post_meta( $session, ContentModel::SESSION_STARTS, (string) ( $this->now - 15 * MINUTE_IN_SECONDS ) );
 	}
 
 	/**

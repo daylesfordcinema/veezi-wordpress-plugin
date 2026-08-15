@@ -189,7 +189,7 @@ final class ContentModel {
 			// entry left behind every second — on a host running a persistent
 			// object cache, which is the one this is written for. The cost is
 			// that a screening can stay listed for its first minute.
-			'value'   => (string) ( time() - time() % MINUTE_IN_SECONDS ),
+			'value'   => (string) ( Clock::now() - Clock::now() % MINUTE_IN_SECONDS ),
 			'compare' => '>',
 			'type'    => 'NUMERIC',
 		);
