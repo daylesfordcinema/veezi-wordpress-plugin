@@ -67,7 +67,7 @@ your cinema, the connection works. If it doesn't, see
 
 ### 4. Sync the programme
 
-The programme syncs by itself every hour, so you can simply wait. To see it now,
+The programme syncs by itself every 15 minutes, so you can simply wait. To see it now,
 press **Sync now** on the same screen. You should get something like:
 
 > Synced 9 films and 16 sessions from Phoenix Cinema.
@@ -324,13 +324,21 @@ the moment its first date goes on sale.** Announce a film for the 6th, 9th and
 and the 9th and 10th are named nowhere until they're selling too. The trade is
 that every date on the site is one a visitor can act on.
 
-Changes here take effect at the next sync, up to an hour away. Press **Sync now**
+Changes here take effect at the next sync, up to fifteen minutes away. Press **Sync now**
 to publish — or take back — straight away.
 
 ## Keeping it up to date
 
-A sync runs **hourly** on WordPress's cron, so nobody has to remember anything.
-Hourly is more often than a cinema's programme changes and costs almost nothing.
+A sync runs **every 15 minutes** on WordPress's cron, so nobody has to remember
+anything. That is more often than a cinema's programme changes, which is the
+point: what matters is not how often the answer moves but how long the site is
+wrong once it has. It costs almost nothing — three small JSON reads, and artwork
+only for a film whose poster is new.
+
+Fifteen minutes is not one of WordPress's own intervals, so the plugin adds it.
+If your host drives WordPress's cron from outside — most managed hosts do, and
+Cloudways is one — the real cadence is however often the host calls it. Check
+that before expecting quarter-hourly updates.
 
 **Settings → Veezi** shows when the programme last synced and what that run did,
 when the next one is due, and has a **Sync now** button for the last-minute
@@ -387,7 +395,7 @@ feel:
 WordPress makes its own sizes from it, including `veezi-poster` at 600px wide,
 which is what the templates ask for.
 
-A sync running hourly re-downloads nothing — artwork is matched on Veezi's own
+A sync repeating through the day re-downloads nothing — artwork is matched on Veezi's own
 media reference, so a poster that changes twice a year is fetched twice a year. A
 film whose artwork is missing or unreachable syncs without one rather than
 failing.
@@ -431,7 +439,7 @@ never written down in the first place.
   them. Change the programme in Veezi.
 - **One Veezi account per WordPress site.** A cinema with two Veezi sites needs
   two WordPress sites, or a plugin of its own.
-- **Changes take up to an hour** unless you press **Sync now**, including
+- **Changes take up to 15 minutes** unless you press **Sync now**, including
   turning Coming Soon on or off.
 
 ## Troubleshooting

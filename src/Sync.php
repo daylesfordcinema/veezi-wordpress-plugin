@@ -43,7 +43,7 @@ final class Sync {
 	 *
 	 * The only way in, so that "two syncs cannot run concurrently" is something
 	 * the code enforces rather than something every caller has to remember. The
-	 * doors are the hourly event and the administrator's own button, and both
+	 * doors are the recurring event and the administrator's own button, and both
 	 * arrive here.
 	 *
 	 * Null when a run is already in progress — which is not a failure and must

@@ -81,6 +81,18 @@ final class Plugin {
 	private function register(): void {
 		add_action( 'init', array( ContentModel::class, 'register' ) );
 		add_action( 'init', array( ContentModel::class, 'flush_rewrites_when_stale' ), 20 );
+
+		// Before anything asks what intervals exist — `Schedule::ensure()` on the
+		// line below, the activation hook, and WordPress itself when a due event
+		// fires. A quarter of an hour is not one of WordPress's own, so an event
+		// scheduled at that interval is only valid while this filter is in place.
+		//
+		// The sniff below reads the interval off the callback to check it is not
+		// shorter than the standard's floor of fifteen minutes, and cannot follow
+		// one that lives in another class. It is `Schedule::EVERY`, which is that
+		// floor exactly.
+		// phpcs:ignore WordPress.WP.CronInterval.ChangeDetected
+		add_filter( 'cron_schedules', array( Schedule::class, 'add_interval' ) );
 		add_action( 'init', array( Schedule::class, 'ensure' ) );
 		add_action( 'pre_get_posts', array( ContentModel::class, 'hide_screenings_that_have_started' ) );
 		add_action( Schedule::HOOK, array( $this, 'sync_on_schedule' ) );
