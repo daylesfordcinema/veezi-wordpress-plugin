@@ -136,7 +136,7 @@ Programme**. Bind them to ordinary widgets the way you'd bind any custom field.
 | **Trailer Link** | the trailer, in a form a video widget understands | the trailer of the film screening |
 | **Film Title** | its own title | the title of the film screening |
 | **Session Time** | when it next screens | that screening's time |
-| **Availability** | "Sold out", "Few tickets left" or "On sale soon" | the same, for this one |
+| **Availability** | "Sold out" or "Few tickets left" for the screening below, or "On sale soon" for a film that's coming soon | "Sold out" or "Few tickets left" for this one |
 | **Booking Link** | the soonest screening still on sale | that screening, unless it can't be booked |
 | **Nothing Scheduled** | a sentence for when the cinema has nothing on at all | the same |
 
@@ -273,16 +273,26 @@ widget renders nothing rather than an empty player.
 ## Coming Soon: publishing what's not on sale yet
 
 Veezi holds next season as well as this week. Sessions that are scheduled but not
-yet selling are called *planned*, and out of the box **the plugin publishes none
-of them**. A planned session isn't an announcement — it's a row in a ticketing
-system, and its time can still change.
+yet selling are called *planned*, and **no planned screening is ever published**.
+A planned session isn't an announcement — it's a row in a ticketing system, and
+its time can still change.
 
-Two controls on **Settings → Veezi** change that:
+Two controls on **Settings → Veezi** decide whether to talk about those films
+anyway:
 
 | | |
 |---|---|
-| **Publish what is coming** | Off by default. On, it publishes planned screenings and files their films under the **Coming Soon** listing. |
+| **Publish what is coming** | Off by default. On, it publishes the *films* that have a planned screening inside the horizon and files them under the **Coming Soon** listing. The screenings themselves stay drafts. |
 | **How far ahead** | 14 days. Counted in whole days in your cinema's timezone, so a fortnight reaches the end of the fourteenth day. |
+
+**It never names a date.** A coming-soon film has no session times, no "next
+screening" and no booking link — it's poster, title, details and "On sale soon" —
+because a date a visitor could plan around is precisely what hasn't been
+committed to. Dates appear when the sessions go on sale in Veezi, and the film
+moves into the current listing at the same moment.
+
+That also means **the chronological "what's on" listing is unaffected by this
+switch.** It holds what can be bought, whichever way the switch is thrown.
 
 The horizon is the point of the pair: advertise the next fortnight without
 publishing three months of forward planning. Anything beyond it waits, and
@@ -299,20 +309,20 @@ would have nowhere to go.
 - **Switching it on is an announcement.** It publishes programming you may not
   have announced anywhere else.
 - **It's reversible.** Switch it off and the next sync takes it all back: the
-  screenings return to drafts and the films leave the listing. A film that has
-  *only* ever been coming soon goes back to a draft too. A film that has been on
-  sale keeps its page, because a link somebody shared has to keep working.
+  films leave the listing. A film that has *only* ever been coming soon goes back
+  to a draft too. A film that has been on sale keeps its page, because a link
+  somebody shared has to keep working.
 - **A planned screening can never be booked.** Veezi has no booking link for one,
   so the Booking Link field resolves to nothing.
 - **A film with anything on sale is never "coming soon"** — it's here. It stays
   in Now Showing showing the dates you can actually buy, and its planned dates
   wait. The two listings never hold the same film.
 
-That last one has a cost worth understanding: **a season you've already published
-is taken back down the moment its first date goes on sale.** Announce a film for
-the 6th, 9th and 10th; put the 6th on sale; the 9th and 10th disappear from the
-site until they're selling too. The trade is that what's advertised is what can
-be bought.
+That last one has a cost worth understanding: **a film stops being "coming soon"
+the moment its first date goes on sale.** Announce a film for the 6th, 9th and
+10th; put the 6th on sale; the film moves to Now Showing listing the 6th alone,
+and the 9th and 10th are named nowhere until they're selling too. The trade is
+that every date on the site is one a visitor can act on.
 
 Changes here take effect at the next sync, up to an hour away. Press **Sync now**
 to publish — or take back — straight away.

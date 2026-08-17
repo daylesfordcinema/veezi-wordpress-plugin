@@ -54,7 +54,9 @@ Against a site with the programme synced and at least one film screening.
       item template and the query sorted by **Menu Order**. Every screening
       still to come comes out in chronological order, each row under the day it
       is on, with the film's title rather than the session record's own — and
-      nothing planned but unannounced among them. Set **Items Per Page** high
+      nothing planned among them, whichever way coming-soon publication is set —
+      throw that switch and press **Sync now**, and this grid must not change.
+      Set **Items Per Page** high
       enough to see the whole programme; it defaults to six.
 
 - [ ] **A screening that has begun is gone from that grid.** Move one session's
