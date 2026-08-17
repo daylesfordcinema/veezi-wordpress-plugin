@@ -151,9 +151,9 @@ final class ContentModel {
 	 * time: past screenings are deleted, so "what is still to come" needs no
 	 * date filter and the page builder — which could not express one anyway —
 	 * has nothing to configure. This is the one thing that cannot be, because
-	 * the sync runs hourly and the question changes every minute. A listing
+	 * the sync runs every quarter of an hour and the question changes every minute. A listing
 	 * driven by the records alone would go on offering a screening for as long
-	 * as an hour after it began.
+	 * as a quarter of an hour after it began.
 	 *
 	 * A screening is deleted once it *ends* rather than once it starts, and
 	 * that is deliberate too: a film's own card should not claim it next

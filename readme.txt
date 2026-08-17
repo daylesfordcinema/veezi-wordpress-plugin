@@ -31,7 +31,7 @@ handles a transaction.
 2. In Veezi Back Office, go to Settings → Web and copy your access token.
 3. In WordPress, go to Settings → Veezi, paste it in and press "Save settings".
    The page comes back naming the cinema you are connected to.
-4. Press "Sync now", or wait — the programme syncs by itself every hour.
+4. Press "Sync now", or wait — the programme syncs by itself every 15 minutes.
 
 New "Films" and "Sessions" menus appear in the sidebar. If films are listed there
 with their posters, everything after that is page building.
@@ -111,8 +111,10 @@ showing the dates you can actually buy.
 
 = Keeping the programme up to date =
 
-A sync runs hourly on WordPress's cron, so nobody has to remember anything, and a
-host that drives that queue externally refreshes a site nobody has visited.
+A sync runs every 15 minutes on WordPress's cron, so nobody has to remember
+anything, and a host that drives that queue externally refreshes a site nobody
+has visited — at whatever interval that host calls it, which sets the real
+cadence.
 Settings → Veezi shows when the programme last synced and what that run did, when
 the next one is due, and has a "Sync now" button for the last-minute change. Only
 one sync runs at a time; anything arriving while one is going stands aside.

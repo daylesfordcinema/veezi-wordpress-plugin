@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
  * are matched on their Veezi identifiers and compared field by field before
  * anything is saved, so a run against unchanged data leaves modification dates,
  * revisions and caches exactly as it found them. Anything else would make a
- * scheduled sync look like a person editing the site every hour.
+ * scheduled sync look like a person editing the site every quarter of an hour.
  *
  * The second is that times are written twice: as the instant the screening
  * happens, which sorts and filters correctly, and as the words to print, worked
