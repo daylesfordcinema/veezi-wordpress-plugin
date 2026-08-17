@@ -123,16 +123,23 @@ final class ComingSoonTest extends TestCase {
 	}
 
 	/**
-	 * And its screenings are published with it, because a coming-soon card
-	 * whose times were all still drafts would be a film with no dates against
-	 * it — which is the one thing somebody planning ahead came for.
+	 * And its screenings are **not** published with it, however far the horizon
+	 * reaches. A date is a promise, and a planned session is exactly the case
+	 * where the cinema has not made one: the time can still move and nobody can
+	 * hold them to it by buying a ticket.
+	 *
+	 * So coming-soon publication reaches the film and stops. That is what the
+	 * settings screen has always described a coming-soon card as — poster,
+	 * title, details, "On sale soon" — and why that card ships with no times
+	 * and no button.
 	 */
-	public function test_a_planned_screening_inside_the_horizon_is_published(): void {
+	public function test_a_planned_screening_is_never_published_however_near_it_is(): void {
 		$this->announce();
 		$this->arrange_a_planned_season();
 		$this->sync_at( self::RUN_AT );
 
-		$this->assertSame( 'publish', get_post_status( $this->session_record( 88 ) ) );
+		$this->assertSame( 'draft', get_post_status( $this->session_record( 88 ) ) );
+		$this->assertSame( 'publish', get_post_status( $this->film_record( 'film-cook' ) ) );
 	}
 
 	/**
@@ -144,8 +151,13 @@ final class ComingSoonTest extends TestCase {
 	 * 1st with a fortnight's horizon therefore reaches the last minute of the
 	 * 15th, and no further.
 	 *
+	 * Read off the **film**, which is what the horizon decides now that no
+	 * planned screening is ever published. With one screening the two questions
+	 * are the same question: the film is talked about exactly when that
+	 * screening is inside the horizon.
+	 *
 	 * @param string $starts   When the planned screening is, locally.
-	 * @param string $expected What the record's status should be.
+	 * @param string $expected What the film's status should be.
 	 *
 	 * @dataProvider screenings_either_side_of_the_horizon
 	 */
@@ -154,7 +166,8 @@ final class ComingSoonTest extends TestCase {
 		$this->arrange_a_planned_season( $starts );
 		$this->sync_at( self::RUN_AT );
 
-		$this->assertSame( $expected, get_post_status( $this->session_record( 88 ) ) );
+		$this->assertSame( $expected, get_post_status( $this->film_record( 'film-cook' ) ) );
+		$this->assertSame( 'draft', get_post_status( $this->session_record( 88 ) ) );
 	}
 
 	/**
@@ -216,7 +229,10 @@ final class ComingSoonTest extends TestCase {
 		);
 		$this->sync_at( self::RUN_AT );
 
-		$this->assertSame( 'publish', get_post_status( $this->session_record( 88 ) ) );
+		// Neither screening is published — none ever is — so what the horizon
+		// decides is whether the *film* is being talked about, and one screening
+		// inside it is enough.
+		$this->assertSame( 'draft', get_post_status( $this->session_record( 88 ) ) );
 		$this->assertSame( 'draft', get_post_status( $this->session_record( 99 ) ) );
 		$this->assertSame(
 			array( ContentModel::COMING_SOON ),
@@ -375,11 +391,15 @@ final class ComingSoonTest extends TestCase {
 	}
 
 	/**
-	 * And inside a film card, where the same words come from the widget's own
-	 * panel. A row with no link, which is what an unsellable screening has
-	 * looked like since ticket 03.
+	 * And a film card lists no planned screening at all — not even as a row with
+	 * no link.
+	 *
+	 * This is the same rule seen from the film's side. A time printed against a
+	 * film is a date the cinema is standing behind, and the widget has no way to
+	 * print one that means "probably". The card is left saying nothing about
+	 * when, which is the honest answer while nothing is on sale.
 	 */
-	public function test_a_films_card_shows_a_planned_screening_without_a_link(): void {
+	public function test_a_films_card_lists_no_planned_screening(): void {
 		$this->announce();
 		$this->arrange_a_planned_season();
 		$this->sync_at( self::RUN_AT );
@@ -393,27 +413,65 @@ final class ComingSoonTest extends TestCase {
 			)
 		);
 
-		$this->assertStringContainsString( '19:00', $html );
-		$this->assertStringContainsString( 'On sale soon', $html );
+		$this->assertStringNotContainsString( '19:00', $html );
 		$this->assertStringNotContainsString( '<a', $html );
 	}
 
 	/**
-	 * A coming-soon film's own card says when and offers nothing to press.
+	 * A coming-soon film's own card names no date and offers nothing to press.
 	 *
-	 * There is no bookable screening to skip forward to — every one of them is
-	 * planned — so the headline time falls back to the soonest of them, which is
-	 * the truth, and the booking link stays empty. A card that headlined a date
-	 * and sold nothing is right here; one that offered a link would not be.
+	 * The date is the point of this one. Every screening it has is planned, so
+	 * there is nothing to headline: a card that named one would be committing
+	 * the cinema to a time it can still move, and "coming soon" is precisely the
+	 * phrase used when the answer to *when* is not settled. The booking link is
+	 * empty for the same reason it always was.
 	 */
-	public function test_a_coming_soon_card_says_when_and_sells_nothing(): void {
+	/**
+	 * But it does still say "On sale soon", which is the whole message of the
+	 * card and the only thing on it a visitor can act on — come back.
+	 *
+	 * That phrase used to arrive by a side road: the badge described the film's
+	 * soonest *screening*, and a coming-soon film had a published one to
+	 * describe. It has none now, so the wording has to come from the fact that
+	 * the film is coming soon, which is a fact about the film and carries no date
+	 * with it. Without this the shipped coming-soon card renders poster, title
+	 * and details under a blank line.
+	 */
+	public function test_a_coming_soon_card_still_says_on_sale_soon(): void {
+		$this->announce();
+		$this->arrange_a_planned_season();
+		$this->sync_at( self::RUN_AT );
+
+		$this->assertSame(
+			'On sale soon',
+			$this->bound( 'veezi-availability', $this->film_record( 'film-cook' ) )
+		);
+	}
+
+	/**
+	 * And a film with nothing scheduled at all says nothing, rather than
+	 * promising a season that does not exist. The difference between the two is
+	 * the listing the sync filed it under.
+	 */
+	public function test_a_film_between_seasons_says_nothing_about_availability(): void {
+		$this->announce();
+		$this->arrange_a_planned_season();
+		$this->sync_at( self::RUN_AT );
+
+		$this->arrange_programme( array(), array() );
+		$this->sync_at( self::RUN_AT );
+
+		$this->assertSame( '', $this->bound( 'veezi-availability', $this->film_record( 'film-cook' ) ) );
+	}
+
+	public function test_a_coming_soon_card_names_no_date_and_sells_nothing(): void {
 		$this->announce();
 		$this->arrange_a_planned_season( '2026-08-04T19:00:00' );
 		$this->sync_at( self::RUN_AT );
 
 		$film = $this->film_record( 'film-cook' );
 
-		$this->assertSame( 'August 4, 2026 7:00 pm', $this->bound( 'veezi-session-time', $film ) );
+		$this->assertSame( '', $this->bound( 'veezi-session-time', $film ) );
 		$this->assertSame( '', $this->bound( 'veezi-booking-url', $film ) );
 	}
 
@@ -532,11 +590,15 @@ final class ComingSoonTest extends TestCase {
 	}
 
 	/**
-	 * A coming-soon film has the same two facts written down, from the dates it
-	 * is actually being advertised on — so a listing can order it and a card can
-	 * count it without knowing which listing it is in.
+	 * A coming-soon film has both of those facts **empty**, because both of them
+	 * are dates or counts of dates, and it has none it can name.
+	 *
+	 * Its place in a listing does not depend on them: the sort falls back to when
+	 * the film is *scheduled*, which the sync knows and never writes down. That
+	 * fallback was built for a film with nothing published, and this is now the
+	 * ordinary case of one rather than the edge case it was.
 	 */
-	public function test_a_coming_soon_film_carries_the_same_facts(): void {
+	public function test_a_coming_soon_film_carries_neither_of_those_facts(): void {
 		$this->announce();
 		$this->arrange_programme(
 			array(
@@ -563,11 +625,12 @@ final class ComingSoonTest extends TestCase {
 
 		$film = $this->film_record( 'film-cook' );
 
-		$this->assertSame( '2', get_post_meta( $film, ContentModel::FILM_SESSION_COUNT, true ) );
-		$this->assertSame(
-			'2026-08-04 09:00',
-			gmdate( 'Y-m-d H:i', (int) get_post_meta( $film, ContentModel::FILM_NEXT_SCREENING, true ) )
-		);
+		$this->assertSame( '0', get_post_meta( $film, ContentModel::FILM_SESSION_COUNT, true ) );
+		$this->assertSame( '', get_post_meta( $film, ContentModel::FILM_NEXT_SCREENING, true ) );
+
+		// And it is still in the listing it belongs to, which is the point of
+		// asserting the two above are empty rather than simply not asserting.
+		$this->assertSame( array( ContentModel::COMING_SOON ), $this->listings( $film ) );
 	}
 
 	/**
@@ -592,10 +655,14 @@ final class ComingSoonTest extends TestCase {
 	}
 
 	/**
-	 * The chronological listing is a query over sessions with nothing
-	 * configured, so it follows this switch without anybody rebuilding it —
-	 * and while the switch is off it cannot show a planned screening even by
-	 * accident, because there is no published record for it to find.
+	 * The chronological listing holds what can be bought, and **this switch does
+	 * not move it** either way. That is the whole of the fix: it used to follow
+	 * the switch, so turning coming-soon on put a week of dates the cinema had
+	 * not committed to into the listing, as rows that could not be clicked.
+	 *
+	 * Kept as a data-provider case in both positions rather than rewritten as one
+	 * assertion, because "the switch does not reach this" is the claim, and only
+	 * throwing the switch can make it.
 	 *
 	 * Two films, because one would not do: a planned date only reaches the
 	 * listing while its own film has nothing on sale, so a single film carrying
@@ -658,7 +725,7 @@ final class ComingSoonTest extends TestCase {
 	public static function the_switch_in_both_positions(): array {
 		return array(
 			'off — only what is on sale' => array( false, 1 ),
-			'on — what is planned too'   => array( true, 2 ),
+			'on — still only that'       => array( true, 1 ),
 		);
 	}
 

@@ -273,16 +273,32 @@ final class Programme {
 	/**
 	 * Whether a visitor should be able to find this screening at all.
 	 *
-	 * Everything on sale, plus whatever planned programming the cinema has
-	 * asked to publish and the horizon reaches. Everything else is written down
-	 * as a draft: the record exists so that an administrator can see what Veezi
-	 * holds and so that moving the horizon publishes it without waiting for the
-	 * next thing to change upstream, but no query a visitor triggers finds it.
+	 * On sale, and nothing else. **A date is a promise**, and a planned session
+	 * is precisely the case where the cinema has not made it: the time can still
+	 * move, and nobody can hold anyone to it by buying a ticket. So no screening
+	 * that is not selling is ever published, however much of it the cinema has
+	 * asked to talk about.
+	 *
+	 * Coming-soon publication therefore reaches the **film** and stops there —
+	 * poster, title, synopsis, "On sale soon" — which is what the settings screen
+	 * has always described a coming-soon card as, and why that card ships with no
+	 * times and no button. {@see self::is_coming_soon()} is what the horizon
+	 * decides now; this is not.
+	 *
+	 * The records still exist as drafts, so an administrator can see everything
+	 * Veezi holds and a season goes public the moment it goes on sale, without
+	 * waiting for anything upstream to change.
+	 *
+	 * This was once `$session->on_sale || $this->is_announced( $session )`, which
+	 * put dates the cinema had not committed to into the chronological listing
+	 * and onto a film's own page — and, once that listing was finally built over
+	 * sessions, made a week of unannounced programming look like a week of
+	 * screenings whose booking links were broken.
 	 *
 	 * @param Session $session One of this programme's screenings.
 	 */
 	public function is_published( Session $session ): bool {
-		return $session->on_sale || $this->is_announced( $session );
+		return $session->on_sale;
 	}
 
 	/**

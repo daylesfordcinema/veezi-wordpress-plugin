@@ -87,13 +87,21 @@ that reports no error anywhere.
 = Coming soon =
 
 Veezi holds next season as well as this week. Sessions that are scheduled but not
-yet selling are called planned, and out of the box the plugin publishes none of
-them: a planned session is not an announcement, and its time can still change.
+yet selling are called planned, and no planned screening is ever published: a
+planned session is not an announcement, and its time can still change.
 
-Two controls on Settings → Veezi change that — whether to publish what is coming,
-and how far ahead to look, counted in whole days in the cinema's own timezone and
-defaulting to a fortnight. Anything beyond the horizon waits, and publishes itself
-when the horizon reaches it.
+Two controls on Settings → Veezi decide whether to talk about those films anyway —
+whether to publish what is coming, and how far ahead to look, counted in whole
+days in the cinema's own timezone and defaulting to a fortnight. A film with a
+planned screening inside the horizon gets a published page and joins the Coming
+Soon listing. Anything beyond the horizon waits, and appears when the horizon
+reaches it.
+
+What that never does is name a date. A coming-soon film carries no screening
+times, no "next screening" and no booking link — it is poster, title, details and
+"On sale soon" — because a date a visitor could plan around is exactly what the
+cinema has not committed to yet. Dates appear when the sessions go on sale in
+Veezi, and the film moves into the current listing at the same time.
 
 Switching it on is an announcement, so the screen says so. It is reversible:
 switch it off and the next sync takes it all back. A planned screening never

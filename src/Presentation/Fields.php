@@ -145,11 +145,37 @@ final class Fields {
 	/**
 	 * What the cinema is saying about the seats for this screening.
 	 *
+	 * Or, for a film with no screening to speak for, whether it is one the cinema
+	 * is talking about ahead of selling it. A coming-soon film has no published
+	 * screening at all — that is what coming soon means, since a planned date is
+	 * not a date anybody is held to — so the badge cannot be read off one, and
+	 * "On sale soon" is the whole message of such a card.
+	 *
+	 * Read from the listing the sync filed the film under rather than from its
+	 * screenings, which is what keeps a date out of it. A film simply between
+	 * seasons is in no listing and says nothing, rather than advertising a season
+	 * that does not exist.
+	 *
 	 * @param int    $post_id A film or a session record.
 	 * @param Badges $words   How this site says each of the three states.
 	 */
 	public static function availability( int $post_id, Badges $words ): string {
-		return self::screening_for( $post_id )?->availability( $words ) ?? '';
+		$screening = self::screening_for( $post_id );
+
+		if ( null !== $screening ) {
+			return $screening->availability( $words );
+		}
+
+		return self::is_coming_soon( $post_id ) ? $words->on_sale_soon : '';
+	}
+
+	/**
+	 * Whether this film is filed under coming soon.
+	 *
+	 * @param int $post_id A film record.
+	 */
+	private static function is_coming_soon( int $post_id ): bool {
+		return true === has_term( ContentModel::COMING_SOON, ContentModel::LISTING, $post_id );
 	}
 
 	/**
