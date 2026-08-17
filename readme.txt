@@ -4,7 +4,7 @@ Tags: cinema, veezi, showtimes, film, elementor
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.2
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -213,6 +213,19 @@ The plugin's README has the snippet.
 No — the next sync will write over your changes. Change it in Veezi instead.
 
 == Changelog ==
+
+= 0.4.0 =
+* Fixed: no planned screening is published, so no date the cinema has not
+  committed to appears anywhere on the site. Coming-soon publication reaches the
+  film — poster, title, details, "On sale soon" — and stops there.
+* Changed: the chronological "what's on" listing is no longer affected by the
+  coming-soon setting. It holds what can be bought, whichever way that is set.
+* Changed: a coming-soon film's page and card no longer name its planned dates,
+  and carry no "next screening" or session count. Dates appear when the sessions
+  go on sale in Veezi.
+* Fixed: the "On sale soon" wording on a coming-soon card now comes from the film
+  being coming soon rather than from one of its screenings, which it no longer
+  has any published one of.
 
 = 0.3.0 =
 * Changed: poster, runtime, classification, genre, cast and crew and trailer

@@ -3,7 +3,7 @@
  * Plugin Name:       Veezi for WordPress
  * Plugin URI:        https://github.com/daylesfordcinema/veezi-wordpress-plugin
  * Description:       Publishes a cinema's Veezi programme as WordPress content — films, sessions, posters and booking links.
- * Version:           0.3.0
+ * Version:           0.4.0
  * Requires at least: 6.5
  * Requires PHP:      8.2
  * Author:            Daylesford Community Theatre
@@ -21,7 +21,7 @@ namespace Veezi\WordPress;
 
 defined( 'ABSPATH' ) || exit;
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 
 define( 'Veezi\WordPress\PLUGIN_FILE', __FILE__ );
 define( 'Veezi\WordPress\PLUGIN_DIR', __DIR__ );
