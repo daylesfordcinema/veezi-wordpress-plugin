@@ -93,6 +93,7 @@ and everything after this is page building.
 |---|---|
 | **Films** | One per film you have something scheduled for. Carries the synopsis, runtime, classification, genre, distributor, release date, cast and crew, trailer link and poster. Each gets its own page at `/film/its-name/`. |
 | **Sessions** | One per screening: when it starts and ends, its booking link, and whether it's sold out or nearly. These exist to be listed, not visited. |
+| **Session Dates** and **Session Weekdays** | Behind-the-scenes taxonomies on sessions, derived in the cinema's timezone. Elementor Pro uses them to give visitors date and weekday filters. |
 | **Genres** and **Classifications** | Taxonomies on films, so visitors can browse by them. |
 | **Listings** | A behind-the-scenes taxonomy with two terms, **Now Showing** and **Coming Soon**, that the sync keeps up to date. This is how you filter a listing without writing a query. |
 
@@ -225,6 +226,17 @@ For the visitor who has a free Thursday rather than a film in mind. A loop grid
 over **Sessions** instead of Films, sorted by **Menu Order**, with the session
 row as its loop item. No filtering needed, and no widget of the plugin's at all —
 every part of a row is an ordinary widget bound to a field.
+
+To let visitors narrow that grid, add Elementor Pro's **Taxonomy Filter** widget,
+choose the session grid under **Selected Loop Grid**, and select **Session Dates**
+as its taxonomy. Add a second Taxonomy Filter pointed at the same grid and select
+**Session Weekdays**. Rename their first items to “Any date” and “Any weekday” if
+you like. The plugin keeps both sets of choices in calendar order and files every
+session under its date in the cinema's timezone. No ACF field or manual term
+editing is involved.
+
+Keep the Loop Grid's source configured directly as **Sessions**. Elementor's
+Taxonomy Filter does not work with a Loop Grid using **Current Query**.
 
 Two things to expect:
 

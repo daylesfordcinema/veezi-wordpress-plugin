@@ -62,6 +62,7 @@ final class Repository {
 
 		$this->store_sessions( $programme, $this->store_films( $programme ) );
 		$this->forget_what_veezi_no_longer_lists( $programme );
+		$this->forget_unused_session_dates();
 	}
 
 	/**
@@ -275,6 +276,50 @@ final class Repository {
 				ContentModel::SESSION_FEW_LEFT    => $session->few_tickets_left ? '1' : '',
 			)
 		);
+
+		$date    = ContentModel::session_date_term( $session->starts_at, $this->zone );
+		$weekday = ContentModel::session_weekday_term( $session->starts_at, $this->zone );
+
+		if ( $date > 0 ) {
+			wp_set_object_terms( $post_id, array( $date ), ContentModel::SESSION_DATE );
+		}
+
+		if ( $weekday > 0 ) {
+			wp_set_object_terms( $post_id, array( $weekday ), ContentModel::SESSION_WEEKDAY );
+		}
+	}
+
+	/**
+	 * Remove dates which no session can be filtered by any more.
+	 *
+	 * Sessions disappear as they finish or when Veezi cancels them, and a moved
+	 * session replaces its old relationship. WordPress leaves the resulting
+	 * empty term behind forever. Elementor can hide it, but without this sweep
+	 * the database still grows by one term for every day the cinema operates.
+	 *
+	 * Term counts are deliberately not used: WordPress does not count a draft
+	 * session, even though its relationship is real and the next sync may
+	 * publish it. Looking for relationships preserves those planned sessions.
+	 */
+	private function forget_unused_session_dates(): void {
+		$dates = get_terms(
+			array(
+				'taxonomy'   => ContentModel::SESSION_DATE,
+				'hide_empty' => false,
+			)
+		);
+
+		if ( is_wp_error( $dates ) ) {
+			return;
+		}
+
+		foreach ( $dates as $date ) {
+			$sessions = get_objects_in_term( $date->term_id, ContentModel::SESSION_DATE );
+
+			if ( ! is_wp_error( $sessions ) && array() === $sessions ) {
+				wp_delete_term( $date->term_id, ContentModel::SESSION_DATE );
+			}
+		}
 	}
 
 	/**

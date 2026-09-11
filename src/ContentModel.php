@@ -9,7 +9,10 @@ declare( strict_types = 1 );
 
 namespace Veezi\WordPress;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use WP_Query;
+use WP_Term;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -34,9 +37,29 @@ final class ContentModel {
 	public const FILM    = 'veezi_film';
 	public const SESSION = 'veezi_session';
 
-	public const GENRE          = 'veezi_genre';
-	public const CLASSIFICATION = 'veezi_classification';
-	public const LISTING        = 'veezi_listing';
+	public const GENRE           = 'veezi_genre';
+	public const CLASSIFICATION  = 'veezi_classification';
+	public const LISTING         = 'veezi_listing';
+	public const SESSION_DATE    = 'veezi_session_date';
+	public const SESSION_WEEKDAY = 'veezi_session_weekday';
+
+	/**
+	 * The order a calendar presents weekdays in.
+	 *
+	 * Kept as stable slugs rather than translated labels so URLs and saved
+	 * Elementor filters survive a language change.
+	 *
+	 * @var array<int,string>
+	 */
+	public const WEEKDAYS = array(
+		'monday',
+		'tuesday',
+		'wednesday',
+		'thursday',
+		'friday',
+		'saturday',
+		'sunday',
+	);
 
 	public const NOW_SHOWING = 'now-showing';
 	public const COMING_SOON = 'coming-soon';
@@ -363,6 +386,81 @@ final class ContentModel {
 				'show_in_rest'      => false,
 			)
 		);
+
+		register_taxonomy(
+			self::SESSION_DATE,
+			self::SESSION,
+			array(
+				'labels'            => array(
+					'name'          => __( 'Session Dates', 'veezi-wordpress-plugin' ),
+					'singular_name' => __( 'Session Date', 'veezi-wordpress-plugin' ),
+				),
+
+				// Dates are generated from Veezi and selected in Elementor, not
+				// edited or visited. Public keeps the taxonomy queryable while the
+				// remaining flags avoid an admin screen and meaningless archives.
+				'public'            => true,
+				'show_ui'           => false,
+				'show_in_nav_menus' => false,
+				'hierarchical'      => false,
+				'rewrite'           => false,
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_taxonomy(
+			self::SESSION_WEEKDAY,
+			self::SESSION,
+			array(
+				'labels'            => array(
+					'name'          => __( 'Session Weekdays', 'veezi-wordpress-plugin' ),
+					'singular_name' => __( 'Session Weekday', 'veezi-wordpress-plugin' ),
+				),
+				'public'            => true,
+				'show_ui'           => false,
+				'show_in_nav_menus' => false,
+				'hierarchical'      => false,
+				'rewrite'           => false,
+				'show_in_rest'      => false,
+			)
+		);
+	}
+
+	/**
+	 * The exact local date Elementor can offer in a session filter.
+	 *
+	 * Its slug is ISO-shaped so lexical order is chronological. The friendly
+	 * name includes the year: omitting it makes WordPress reject next year's
+	 * same date as a duplicate term name, long before its different slug can do
+	 * any good.
+	 *
+	 * @param DateTimeImmutable $starts_at A session's exact starting instant.
+	 * @param DateTimeZone      $zone      The cinema's timezone.
+	 */
+	public static function session_date_term( DateTimeImmutable $starts_at, DateTimeZone $zone ): int {
+		$local = $starts_at->setTimezone( $zone );
+
+		return self::term(
+			self::SESSION_DATE,
+			$local->format( 'Y-m-d' ),
+			wp_date( 'l j F Y', $local->getTimestamp(), $zone )
+		);
+	}
+
+	/**
+	 * The reusable weekday Elementor can offer in a second session filter.
+	 *
+	 * @param DateTimeImmutable $starts_at A session's exact starting instant.
+	 * @param DateTimeZone      $zone      The cinema's timezone.
+	 */
+	public static function session_weekday_term( DateTimeImmutable $starts_at, DateTimeZone $zone ): int {
+		$local = $starts_at->setTimezone( $zone );
+
+		return self::term(
+			self::SESSION_WEEKDAY,
+			strtolower( $local->format( 'l' ) ),
+			wp_date( 'l', $local->getTimestamp(), $zone )
+		);
 	}
 
 	/**
@@ -376,19 +474,33 @@ final class ContentModel {
 	 * @param string $slug Which listing.
 	 */
 	public static function listing_term( string $slug ): int {
-		$existing = get_term_by( 'slug', $slug, self::LISTING );
+		return self::term( self::LISTING, $slug, self::listing_name( $slug ) );
+	}
 
-		if ( $existing instanceof \WP_Term ) {
+	/**
+	 * Find or make a term the sync owns.
+	 *
+	 * The second lookup is not redundancy: two sync processes can both miss a
+	 * term before one wins the insert. The loser should use the winner rather
+	 * than turn that harmless race into a missing classification.
+	 *
+	 * @param string $taxonomy Which plugin-owned classification.
+	 * @param string $slug     Its stable machine-readable name.
+	 * @param string $name     Its localised visitor-facing name.
+	 */
+	private static function term( string $taxonomy, string $slug, string $name ): int {
+		$existing = get_term_by( 'slug', $slug, $taxonomy );
+
+		if ( $existing instanceof WP_Term ) {
 			return $existing->term_id;
 		}
 
-		$created = wp_insert_term( self::listing_name( $slug ), self::LISTING, array( 'slug' => $slug ) );
+		$created = wp_insert_term( $name, $taxonomy, array( 'slug' => $slug ) );
 
 		if ( is_wp_error( $created ) ) {
-			// Another process won the race between the lookup and the insert.
-			$existing = get_term_by( 'slug', $slug, self::LISTING );
+			$existing = get_term_by( 'slug', $slug, $taxonomy );
 
-			return $existing instanceof \WP_Term ? $existing->term_id : 0;
+			return $existing instanceof WP_Term ? $existing->term_id : 0;
 		}
 
 		return (int) $created['term_id'];

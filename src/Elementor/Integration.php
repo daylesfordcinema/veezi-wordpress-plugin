@@ -63,6 +63,60 @@ final class Integration {
 		add_action( 'elementor/widgets/register', array( $this, 'register_widgets' ) );
 		add_action( 'elementor/frontend/after_register_styles', array( $this, 'register_styles' ) );
 		add_filter( 'elementor_pro/utils/get_public_post_types', array( $this, 'offer_sessions_as_a_loop_source' ) );
+
+		// Elementor Pro applies this before fetching a Taxonomy Filter's terms.
+		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
+		add_filter( 'elementor/loop_taxonomy/args', array( $this, 'order_session_filter_terms' ) );
+	}
+
+	/**
+	 * Present generated session terms in calendar order.
+	 *
+	 * WordPress defaults to sorting terms by their friendly names. That makes
+	 * exact dates alphabetical by weekday and weekdays alphabetical by label —
+	 * both valid queries and unusable filters. ISO date slugs sort naturally;
+	 * weekdays need the explicit order people scan a programme in.
+	 *
+	 * `include` is preserved when another Elementor control supplied one. Its
+	 * ids are reordered rather than widened, so a designer's narrower set stays
+	 * narrower.
+	 *
+	 * @param  array<string,mixed> $args Arguments Elementor will pass to get_terms().
+	 * @return array<string,mixed>
+	 */
+	public function order_session_filter_terms( array $args ): array {
+		if ( ContentModel::SESSION_DATE === ( $args['taxonomy'] ?? '' ) ) {
+			$args['orderby'] = 'slug';
+			$args['order']   = 'ASC';
+
+			return $args;
+		}
+
+		if ( ContentModel::SESSION_WEEKDAY !== ( $args['taxonomy'] ?? '' ) ) {
+			return $args;
+		}
+
+		$included = isset( $args['include'] ) ? array_map( 'intval', (array) $args['include'] ) : array();
+		$ordered  = array();
+
+		foreach ( ContentModel::WEEKDAYS as $slug ) {
+			$term = get_term_by( 'slug', $slug, ContentModel::SESSION_WEEKDAY );
+
+			if ( ! $term instanceof \WP_Term ) {
+				continue;
+			}
+
+			if ( array() === $included || in_array( $term->term_id, $included, true ) ) {
+				$ordered[] = $term->term_id;
+			}
+		}
+
+		if ( array() !== $ordered ) {
+			$args['include'] = $ordered;
+			$args['orderby'] = 'include';
+		}
+
+		return $args;
 	}
 
 	/**

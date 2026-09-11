@@ -4,7 +4,7 @@ Tags: cinema, veezi, showtimes, film, elementor
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.2
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -83,6 +83,19 @@ by when they next screen and screenings chronologically, and writes those number
 into that field. Left on the default you get publication date, which for synced
 content is whenever the sync happened to create the record — a meaningless order
 that reports no error anywhere.
+
+= Filtering sessions by date and weekday =
+
+Elementor Pro can filter the What's on loop without ACF or custom query code.
+Add a Taxonomy Filter widget, point Selected Loop Grid at the Sessions grid, and
+choose "Session Dates". Add a second filter pointed at the same grid and choose
+"Session Weekdays". The plugin derives both from each screening in the cinema's
+own timezone and keeps their choices in calendar order.
+
+The loop grid must have its source configured directly as Sessions. Elementor's
+Taxonomy Filter does not work when the grid uses Current Query. The generated
+terms are sync-owned like the sessions themselves and should not be edited by
+hand.
 
 = Coming soon =
 
@@ -213,6 +226,14 @@ The plugin's README has the snippet.
 No — the next sync will write over your changes. Change it in Veezi instead.
 
 == Changelog ==
+
+= 0.5.0 =
+* Added: sessions are classified by their exact date and weekday in the
+  cinema's timezone, so Elementor Pro's Taxonomy Filter can narrow the What's
+  on grid without ACF or custom query code.
+* Added: generated date choices appear chronologically and weekday choices run
+  Monday through Sunday. Dates no session uses any more are removed after a
+  successful sync.
 
 = 0.4.0 =
 * Fixed: no planned screening is published, so no date the cinema has not

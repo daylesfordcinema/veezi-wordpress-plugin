@@ -59,6 +59,14 @@ Against a site with the programme synced and at least one film screening.
       Set **Items Per Page** high
       enough to see the whole programme; it defaults to six.
 
+- [ ] **Date and weekday filters narrow that Sessions grid.** Add two Taxonomy
+      Filter widgets targeting the grid, one set to **Session Dates** and one to
+      **Session Weekdays**. Both taxonomies appear in the control; date choices
+      are chronological, weekdays run Monday through Sunday, and choosing a
+      date plus its weekday keeps only that day's sessions. Choosing a date and
+      a different weekday produces the grid's empty result rather than treating
+      the two filters as alternatives.
+
 - [ ] **A screening that has begun is gone from that grid.** Move one session's
       `_veezi_starts_at` to twenty minutes ago. The calendar drops the row; the
       film's own Session Times keeps it, with no link. Only Pro's loop grid can
