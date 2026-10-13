@@ -55,6 +55,41 @@ final class ScheduleTest extends TestCase {
 		);
 	}
 
+	/**
+	 * A quarter of an hour, which is not one of WordPress's own intervals — so
+	 * this asserts both that the event is set to it and that the plugin actually
+	 * put it on the list. Miss the second and `wp_schedule_event()` refuses the
+	 * name, which is a site that never syncs.
+	 */
+	public function test_the_sync_runs_every_quarter_of_an_hour(): void {
+		Schedule::ensure();
+
+		$this->assertSame( Schedule::RECURRENCE, wp_get_scheduled_event( Schedule::HOOK )->schedule );
+		$this->assertSame( 15 * MINUTE_IN_SECONDS, wp_get_schedules()[ Schedule::RECURRENCE ]['interval'] );
+	}
+
+	/**
+	 * And a site whose `cron_schedules` no longer carries it still syncs — an
+	 * hour at a time, which is what this plugin did until now — rather than not
+	 * at all.
+	 *
+	 * The default recurrence is a name the plugin adds itself, so returning it
+	 * unchecked would reintroduce the very failure
+	 * {@see self::test_an_interval_wordpress_does_not_know_leaves_the_site_scheduled_anyway()}
+	 * exists to prevent, on any site that had filtered the list.
+	 */
+	public function test_losing_the_plugins_own_interval_still_leaves_the_site_syncing(): void {
+		remove_filter( 'cron_schedules', array( Schedule::class, 'add_interval' ) );
+
+		Schedule::ensure();
+
+		$event = wp_get_scheduled_event( Schedule::HOOK );
+
+		$this->assertNotFalse( $event );
+		$this->assertSame( 'hourly', $event->schedule );
+		$this->assertArrayHasKey( $event->schedule, wp_get_schedules() );
+	}
+
 	public function test_asking_twice_leaves_one_event(): void {
 		Schedule::ensure();
 		$first = Schedule::next_run();

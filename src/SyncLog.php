@@ -79,7 +79,7 @@ final class SyncLog {
 	/**
 	 * Leave a line somewhere the person who has to fix this will find it.
 	 *
-	 * Failures only. A cinema's programme syncs every hour of every day, and a
+	 * Failures only. A cinema's programme syncs four times an hour of every day, and a
 	 * line per run would bury the one that matters under thousands that do not.
 	 *
 	 * Ungated by `WP_DEBUG`, which is off on a production site — the one place a

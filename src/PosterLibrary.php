@@ -100,7 +100,7 @@ final class PosterLibrary {
 	/**
 	 * Whether this film already has this exact artwork.
 	 *
-	 * The media reference is the key, so a sync that runs hourly downloads
+	 * The media reference is the key, so a sync repeating through the day downloads
 	 * nothing for artwork that changes twice a year. Checking that the
 	 * attachment is still really there is what makes a poster deleted by hand,
 	 * or lost in a migration, come back on the next run rather than leave a

@@ -215,7 +215,7 @@ final class Screening {
 	 * Whether this one has begun.
 	 *
 	 * Read from the clock rather than from anything the sync wrote, because the
-	 * sync runs hourly and this changes every minute.
+	 * sync runs every quarter of an hour and this changes every minute.
 	 */
 	public function has_started(): bool {
 		return $this->starts_at <= Clock::now();
@@ -237,7 +237,7 @@ final class Screening {
 	 *
 	 * The fourth is a screening that has begun. Veezi withdraws the link itself,
 	 * its websession feed being future-only, but not until the next sync — so
-	 * for as long as an hour a card would go on selling something the visitor
+	 * for as long as a quarter of an hour a card would go on selling something the visitor
 	 * has already missed. The row stays, which is ticket 05's point; the offer
 	 * does not, which is this one's. It is also what keeps a card's headline
 	 * time and its button on the same screening, since both follow the soonest
