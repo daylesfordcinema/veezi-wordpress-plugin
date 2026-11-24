@@ -44,7 +44,7 @@ final class ComingSoon {
 	 * horizon is a bounded mistake rather than one that publishes whatever
 	 * Veezi happens to hold.
 	 */
-	public const MOST_DAYS = 365;
+	public const MOST_DAYS = ListingHorizon::MOST_DAYS;
 
 	private function __construct(
 		private readonly bool $enabled,
@@ -65,11 +65,7 @@ final class ComingSoon {
 	 * @param mixed $days Whatever was submitted or stored.
 	 */
 	public static function days_within_reason( mixed $days ): int {
-		if ( ! is_numeric( $days ) ) {
-			return self::DEFAULT_DAYS;
-		}
-
-		return max( 0, min( self::MOST_DAYS, (int) $days ) );
+		return ListingHorizon::days_within_reason( $days ) ?? self::DEFAULT_DAYS;
 	}
 
 	/**
@@ -85,12 +81,6 @@ final class ComingSoon {
 	 *                                these are.
 	 */
 	public function horizon( DateTimeImmutable $now, DateTimeZone $zone ): ?DateTimeImmutable {
-		if ( ! $this->enabled ) {
-			return null;
-		}
-
-		return $now->setTimezone( $zone )
-			->modify( sprintf( '+%d days', $this->days ) )
-			->setTime( 23, 59, 59 );
+		return ListingHorizon::cutoff( $this->enabled ? $this->days : null, $now, $zone );
 	}
 }

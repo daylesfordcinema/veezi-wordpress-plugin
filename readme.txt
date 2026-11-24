@@ -4,7 +4,7 @@ Tags: cinema, veezi, showtimes, film, elementor
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.2
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -97,6 +97,14 @@ Taxonomy Filter does not work when the grid uses Current Query. The generated
 terms are sync-owned like the sessions themselves and should not be edited by
 hand.
 
+= Now Showing =
+
+Under Settings → Veezi → Now Showing, set "How far ahead" to list films with a
+session on sale within that many calendar days in the cinema's timezone. Enter
+0 for today only or leave the field blank to include all dates. Save and press
+"Sync now" to apply the change. Sessions on sale remain visible in What's on
+and on film pages.
+
 = Coming soon =
 
 Veezi holds next season as well as this week. Sessions that are scheduled but not
@@ -114,13 +122,14 @@ What that never does is name a date. A coming-soon film carries no screening
 times, no "next screening" and no booking link — it is poster, title, details and
 "On sale soon" — because a date a visitor could plan around is exactly what the
 cinema has not committed to yet. Dates appear when the sessions go on sale in
-Veezi, and the film moves into the current listing at the same time.
+Veezi. At the next sync, the film leaves Coming Soon and joins Now Showing if
+it has a session on sale within that listing's window.
 
 Switching it on is an announcement, so the screen says so. It is reversible:
 switch it off and the next sync takes it all back. A planned screening never
 carries a booking link, because Veezi has none to give. And a film with anything
-on sale is never "coming soon" — it is here, so it stays in the current listing
-showing the dates you can actually buy.
+on sale is ineligible for Coming Soon, even if its on-sale dates are beyond
+the Now Showing window.
 
 = Keeping the programme up to date =
 
@@ -226,6 +235,11 @@ The plugin's README has the snippet.
 No — the next sync will write over your changes. Change it in Veezi instead.
 
 == Changelog ==
+
+= 0.6.0 =
+* Added: an optional calendar-day cutoff for the Now Showing film grid. Existing
+  sites keep all dates eligible until a cutoff is set. Bookable sessions remain
+  visible in What's on and on film pages.
 
 = 0.5.0 =
 * Added: sessions are classified by their exact date and weekday in the

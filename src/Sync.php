@@ -106,7 +106,8 @@ final class Sync {
 			$feeds['films'],
 			$zone,
 			$now,
-			ComingSoon::from( $this->settings )
+			ComingSoon::from( $this->settings ),
+			$this->settings->now_showing_days()
 		);
 
 		( new Repository( $zone ) )->store( $programme );

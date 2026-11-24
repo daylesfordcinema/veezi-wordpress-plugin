@@ -152,7 +152,11 @@ final class Repository {
 			'' === $film->classification ? array() : array( $film->classification ),
 			ContentModel::CLASSIFICATION
 		);
-		wp_set_object_terms( $post_id, $this->listings( $on_sale, $coming_soon ), ContentModel::LISTING );
+		wp_set_object_terms(
+			$post_id,
+			$this->listings( $programme->is_now_showing( $film->id ), $coming_soon ),
+			ContentModel::LISTING
+		);
 
 		$this->posters->attach( $post_id, $film );
 
@@ -162,20 +166,15 @@ final class Repository {
 	/**
 	 * Which listings a film belongs in.
 	 *
-	 * Both is an ordinary answer, not an edge case: a film showing this week
-	 * with more dates announced for next month is in the current programme and
-	 * in what is coming. Neither is also ordinary — that is a film whose season
-	 * has ended, or one nobody has decided to talk about yet.
-	 *
-	 * @param  bool $on_sale     Whether a ticket can be bought for it.
+	 * @param  bool $now_showing Whether a session on sale falls inside the listing window.
 	 * @param  bool $coming_soon Whether something of it has been announced ahead
 	 *                           of going on sale.
 	 * @return array<int,int> Term ids, made on demand.
 	 */
-	private function listings( bool $on_sale, bool $coming_soon ): array {
+	private function listings( bool $now_showing, bool $coming_soon ): array {
 		$listings = array();
 
-		if ( $on_sale ) {
+		if ( $now_showing ) {
 			$listings[] = ContentModel::listing_term( ContentModel::NOW_SHOWING );
 		}
 

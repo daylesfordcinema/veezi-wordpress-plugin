@@ -99,11 +99,14 @@ final class Programme {
 	 * @param DateTimeImmutable|null $announce_until The last moment a planned screening may
 	 *                                               start at and still be published; null when
 	 *                                               the cinema has not asked for any of it.
+	 * @param DateTimeImmutable|null $list_until     The last eligible start for Now Showing,
+	 *                                               or null for no cutoff.
 	 */
 	private function __construct(
 		array $films,
 		private readonly array $sessions,
-		private readonly ?DateTimeImmutable $announce_until
+		private readonly ?DateTimeImmutable $announce_until,
+		private readonly ?DateTimeImmutable $list_until
 	) {
 		$remaining = array();
 		$soonest   = array();
@@ -175,15 +178,16 @@ final class Programme {
 	}
 
 	/**
-	 * @param array<int,mixed>  $sessions     Whatever `/v1/session` returned.
-	 * @param array<int,mixed>  $web_sessions Whatever `/v1/websession` returned.
-	 * @param array<int,mixed>  $films        Whatever `/v4/film` returned.
-	 * @param DateTimeZone      $zone         The cinema's timezone.
-	 * @param DateTimeImmutable $now          The moment the sync is running at.
-	 * @param ComingSoon        $coming_soon  How far ahead the cinema is willing
-	 *                                        to talk about, if at all.
+	 * @param array<int,mixed>  $sessions         Whatever `/v1/session` returned.
+	 * @param array<int,mixed>  $web_sessions     Whatever `/v1/websession` returned.
+	 * @param array<int,mixed>  $films            Whatever `/v4/film` returned.
+	 * @param DateTimeZone      $zone             The cinema's timezone.
+	 * @param DateTimeImmutable $now              The moment the sync is running at.
+	 * @param ComingSoon        $coming_soon      Which planned films to announce.
+	 * @param int|null          $now_showing_days Calendar days ahead for Now Showing,
+	 *                                           or null for no cutoff.
 	 */
-	public static function assemble( array $sessions, array $web_sessions, array $films, DateTimeZone $zone, DateTimeImmutable $now, ComingSoon $coming_soon ): self {
+	public static function assemble( array $sessions, array $web_sessions, array $films, DateTimeZone $zone, DateTimeImmutable $now, ComingSoon $coming_soon, ?int $now_showing_days = null ): self {
 		$booking_urls = self::booking_urls( $web_sessions );
 
 		$assembled = array();
@@ -221,7 +225,8 @@ final class Programme {
 		return new self(
 			self::scheduled_films( $films, $assembled ),
 			$assembled,
-			$coming_soon->horizon( $now, $zone )
+			$coming_soon->horizon( $now, $zone ),
+			ListingHorizon::cutoff( $now_showing_days, $now, $zone )
 		);
 	}
 
@@ -240,10 +245,7 @@ final class Programme {
 	}
 
 	/**
-	 * Whether a visitor can buy a ticket for this film, which is also whether it
-	 * belongs in the current listing. Those two had separate answers while the
-	 * programme still held screenings that had been and gone. It does not, so
-	 * they do not.
+	 * Whether the film has any sessions on sale, regardless of listing limits.
 	 *
 	 * @param string $film_id Its Veezi identifier.
 	 */
@@ -252,17 +254,19 @@ final class Programme {
 	}
 
 	/**
+	 * @param string $film_id Its Veezi identifier.
+	 */
+	public function is_now_showing( string $film_id ): bool {
+		$next = $this->next_screening( $film_id );
+
+		return null !== $next && ( null === $this->list_until || $next <= $this->list_until );
+	}
+
+	/**
 	 * Whether this film is one the cinema is talking about ahead of selling it.
 	 *
-	 * The exact opposite of {@see self::is_on_sale()} wherever both could be
-	 * true, and deliberately so: a film screening on Sunday is not coming soon,
-	 * it is here. Filing such a film under both would leave the phrase doing no
-	 * work and put something a visitor can buy a ticket for right now into the
-	 * listing of things they cannot.
-	 *
-	 * Nothing enforces that here, though — it falls out of the rule below, so
-	 * that there is one place where it is decided rather than two that have to
-	 * agree.
+	 * A film with tickets on sale is ineligible even when its first on-sale
+	 * screening is beyond the Now Showing window.
 	 *
 	 * @param string $film_id Its Veezi identifier.
 	 */
