@@ -220,6 +220,13 @@ A loop grid over **Films**, sorted by **Menu Order**, filtered to the **Now
 Showing** term of the **Listings** taxonomy, with the film card as its loop item.
 That's the whole configuration. *(Loop grid is Elementor Pro.)*
 
+Under **Settings → Veezi → Now Showing**, use **How far ahead** to limit the
+grid to films with a session on sale within that many calendar days in the
+cinema's timezone. The cutoff includes the entire last day. Enter **0** for
+today only, or leave the field blank to include all dates (the default). Save
+and press **Sync now** to apply the change. All sessions on sale still appear
+in **What's On** and remain bookable from the film's page.
+
 ### What's on — a listing by day
 
 For the visitor who has a free Thursday rather than a film in mind. A loop grid
@@ -300,8 +307,9 @@ anyway:
 **It never names a date.** A coming-soon film has no session times, no "next
 screening" and no booking link — it's poster, title, details and "On sale soon" —
 because a date a visitor could plan around is precisely what hasn't been
-committed to. Dates appear when the sessions go on sale in Veezi, and the film
-moves into the current listing at the same moment.
+committed to. Dates appear when the sessions go on sale in Veezi. At the next
+sync, the film leaves Coming Soon and joins Now Showing if it has a session
+on sale inside that listing's window.
 
 That also means **the chronological "what's on" listing is unaffected by this
 switch.** It holds what can be bought, whichever way the switch is thrown.
@@ -326,15 +334,13 @@ would have nowhere to go.
   somebody shared has to keep working.
 - **A planned screening can never be booked.** Veezi has no booking link for one,
   so the Booking Link field resolves to nothing.
-- **A film with anything on sale is never "coming soon"** — it's here. It stays
-  in Now Showing showing the dates you can actually buy, and its planned dates
-  wait. The two listings never hold the same film.
+- **A film with anything on sale is ineligible for Coming Soon.** The two
+  listings never hold the same film, even with a Now Showing cutoff.
 
-That last one has a cost worth understanding: **a film stops being "coming soon"
-the moment its first date goes on sale.** Announce a film for the 6th, 9th and
-10th; put the 6th on sale; the film moves to Now Showing listing the 6th alone,
-and the 9th and 10th are named nowhere until they're selling too. The trade is
-that every date on the site is one a visitor can act on.
+For example, a film with planned screenings on the 6th, 9th and 10th leaves
+Coming Soon after the 6th goes on sale and the next sync runs. If the 6th is
+inside the Now Showing window, the film appears there with that date. The 9th
+and 10th appear when they go on sale.
 
 Changes here take effect at the next sync, up to an hour away. Press **Sync now**
 to publish — or take back — straight away.

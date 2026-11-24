@@ -228,6 +228,22 @@ final class SettingsPageTest extends TestCase {
 		);
 	}
 
+	public function test_now_showing_days_can_be_saved_and_cleared_in_settings(): void {
+		$this->become_administrator();
+		$this->page->add_fields();
+		$settings = new Settings();
+		$this->assertNull( $settings->now_showing_days() );
+
+		update_option( Settings::OPTION, array( Settings::NOW_SHOWING_DAYS_FIELD => '7' ) );
+
+		$html = $this->render( array( $this->page, 'render' ) );
+		$this->assertStringContainsString( 'name="veezi_settings[now_showing_days]" value="7"', $html );
+		$this->assertSame( 7, $settings->now_showing_days() );
+
+		update_option( Settings::OPTION, array( Settings::NOW_SHOWING_DAYS_FIELD => '' ) );
+		$this->assertNull( $settings->now_showing_days() );
+	}
+
 	/**
 	 * A checkbox rendered unticked whatever is stored is the settings bug that
 	 * costs an afternoon: it reads as "off", and saving anything else on the

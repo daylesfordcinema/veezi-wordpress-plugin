@@ -11,6 +11,7 @@ namespace Veezi\WordPress\Admin;
 
 use Veezi\WordPress\ComingSoon;
 use Veezi\WordPress\ConnectionResult;
+use Veezi\WordPress\ListingHorizon;
 use Veezi\WordPress\Plugin;
 use Veezi\WordPress\ResponseCache;
 use Veezi\WordPress\Schedule;
@@ -164,6 +165,22 @@ final class SettingsPage {
 			'veezi_coming_soon',
 			array( 'label_for' => 'veezi-coming-soon-days' )
 		);
+
+		add_settings_section(
+			'veezi_now_showing',
+			__( 'Now Showing', 'veezi-wordpress-plugin' ),
+			'__return_empty_string',
+			self::MENU_SLUG
+		);
+
+		add_settings_field(
+			'veezi_now_showing_days',
+			__( 'How far ahead', 'veezi-wordpress-plugin' ),
+			array( $this, 'render_now_showing_days_field' ),
+			self::MENU_SLUG,
+			'veezi_now_showing',
+			array( 'label_for' => 'veezi-now-showing-days' )
+		);
 	}
 
 	/**
@@ -222,6 +239,24 @@ final class SettingsPage {
 		echo '<p class="description">';
 		esc_html_e(
 			'Counted in whole days in the cinema’s own timezone, so a fortnight reaches the end of the fourteenth day. Anything scheduled beyond it stays off the site.',
+			'veezi-wordpress-plugin'
+		);
+		echo '</p>';
+	}
+
+	public function render_now_showing_days_field(): void {
+		printf(
+			'<input type="number" id="veezi-now-showing-days" name="%1$s[%2$s]" value="%3$s" class="small-text" min="0" max="%4$s" step="1" aria-describedby="veezi-now-showing-days-description" /> %5$s',
+			esc_attr( Settings::OPTION ),
+			esc_attr( Settings::NOW_SHOWING_DAYS_FIELD ),
+			esc_attr( (string) $this->plugin->settings()->now_showing_days() ),
+			esc_attr( (string) ListingHorizon::MOST_DAYS ),
+			esc_html__( 'days', 'veezi-wordpress-plugin' )
+		);
+
+		echo '<p id="veezi-now-showing-days-description" class="description">';
+		esc_html_e(
+			'Show a film in Now Showing when it has a session on sale within this many calendar days in the cinema’s timezone. Enter 0 for today only, or leave blank for all dates. The change takes effect on the next sync.',
 			'veezi-wordpress-plugin'
 		);
 		echo '</p>';

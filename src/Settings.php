@@ -33,6 +33,9 @@ final class Settings {
 	/** How far ahead that reaches, in the cinema's own days. */
 	public const COMING_SOON_DAYS_FIELD = 'coming_soon_days';
 
+	/** How far ahead to list films on sale. Null leaves the listing unlimited. */
+	public const NOW_SHOWING_DAYS_FIELD = 'now_showing_days';
+
 	/**
 	 * Matches anything a token may *not* contain, for stripping.
 	 *
@@ -55,6 +58,7 @@ final class Settings {
 		'token'                      => '',
 		self::COMING_SOON_FIELD      => false,
 		self::COMING_SOON_DAYS_FIELD => ComingSoon::DEFAULT_DAYS,
+		self::NOW_SHOWING_DAYS_FIELD => null,
 	);
 
 	/**
@@ -97,6 +101,10 @@ final class Settings {
 		return ComingSoon::days_within_reason( $this->all()[ self::COMING_SOON_DAYS_FIELD ] );
 	}
 
+	public function now_showing_days(): ?int {
+		return ListingHorizon::days_within_reason( $this->all()[ self::NOW_SHOWING_DAYS_FIELD ] );
+	}
+
 	/**
 	 * @param array<string,mixed> $values Merged over what is already stored.
 	 */
@@ -122,6 +130,10 @@ final class Settings {
 		$clean[ self::COMING_SOON_DAYS_FIELD ] = ComingSoon::days_within_reason(
 			$input[ self::COMING_SOON_DAYS_FIELD ] ?? $clean[ self::COMING_SOON_DAYS_FIELD ]
 		);
+
+		if ( array_key_exists( self::NOW_SHOWING_DAYS_FIELD, $input ) ) {
+			$clean[ self::NOW_SHOWING_DAYS_FIELD ] = ListingHorizon::days_within_reason( $input[ self::NOW_SHOWING_DAYS_FIELD ] );
+		}
 
 		if ( ! empty( $input[ self::DELETE_TOKEN_FIELD ] ) ) {
 			$clean['token'] = '';

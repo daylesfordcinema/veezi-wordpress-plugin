@@ -10,6 +10,7 @@ namespace Veezi\WordPress\Tests;
 use DateTimeImmutable;
 use DateTimeZone;
 use Veezi\WordPress\ContentModel;
+use Veezi\WordPress\Settings;
 use Veezi\WordPress\Tests\Support\TestCase;
 
 /**
@@ -117,6 +118,63 @@ final class ProgrammeSyncTest extends TestCase {
 			array( ContentModel::NOW_SHOWING ),
 			wp_get_object_terms( $this->film_record( 'film-cook' ), ContentModel::LISTING, array( 'fields' => 'slugs' ) )
 		);
+	}
+
+	public function test_a_now_showing_cutoff_changes_the_listing_without_hiding_bookable_sessions(): void {
+		$settings = new Settings();
+		$settings->update( array( Settings::COMING_SOON_FIELD => true ) );
+		$this->arrange_programme(
+			array(
+				$this->session_payload(
+					array(
+						'Id'     => 10,
+						'starts' => '2026-08-02T23:59:59',
+						'Status' => 'Planned',
+					)
+				),
+				$this->session_payload(
+					array(
+						'Id'     => 11,
+						'starts' => '2026-08-03T00:00:00',
+					)
+				),
+			),
+			array( $this->film_payload() )
+		);
+
+		// It's already August 2 at the cinema. The on-sale session starts one
+		// second after the end of the local day, but is listed with no cutoff.
+		$now = '2026-08-01 19:00:00';
+		$this->sync_at( $now );
+		$film = $this->film_record( 'film-cook' );
+		$this->assertTrue( has_term( ContentModel::NOW_SHOWING, ContentModel::LISTING, $film ) );
+
+		$settings->update( array( Settings::NOW_SHOWING_DAYS_FIELD => 0 ) );
+		$this->sync_at( $now );
+
+		$this->assertSame( array(), wp_get_object_terms( $film, ContentModel::LISTING, array( 'fields' => 'slugs' ) ) );
+		$this->assertSame( 'publish', get_post_status( $film ) );
+		$session = $this->session_record( 11 );
+		$this->assertSame( 'publish', get_post_status( $session ) );
+		$this->assertNotEmpty( get_post_meta( $session, ContentModel::SESSION_BOOKING, true ) );
+		$this->assertSame( '1', get_post_meta( $film, ContentModel::FILM_SESSION_COUNT, true ) );
+
+		// The same window includes the session at the next local midnight.
+		$this->sync_at( '2026-08-02 14:00:00' );
+		$this->assertTrue( has_term( ContentModel::NOW_SHOWING, ContentModel::LISTING, $film ) );
+	}
+
+	public function test_now_showing_includes_the_last_second_of_the_cutoff_day(): void {
+		( new Settings() )->update( array( Settings::NOW_SHOWING_DAYS_FIELD => 1 ) );
+		$this->arrange_programme(
+			array( $this->session_payload( array( 'starts' => '2026-08-03T23:59:59' ) ) ),
+			array( $this->film_payload() )
+		);
+
+		// August 2 in Melbourne, so a one-day window ends on August 3.
+		$this->sync_at( '2026-08-01 19:00:00' );
+
+		$this->assertTrue( has_term( ContentModel::NOW_SHOWING, ContentModel::LISTING, $this->film_record( 'film-cook' ) ) );
 	}
 
 	/**
